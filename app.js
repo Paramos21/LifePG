@@ -1,21 +1,3 @@
-let state = loadState();
-let timerInterval = null, timeLeft = 25 * 60, isTimerRunning = false, currentPreset = 25;
-
-window.onload = function init() {
-  checkDailyReset();
-  renderHabits();
-  renderDaysSelector();
-  renderSchedule(getCurrentDay());
-  renderShop();
-  renderBosses();
-  checkBadges();
-  renderBadges();
-  renderHistory();
-  checkBonusUI();
-  updateUIElements();
-  updateDashboard();
-};
-
 // Sintetizador Audio Web
 function playSound(type) {
   try {
@@ -66,33 +48,10 @@ function playSound(type) {
   } catch (e) {}
 }
 
-// Cargar y Guardar Estado
+// Cargar y Guardar Estado Blindado
 function loadState() {
-  const saved = localStorage.getItem('lifepg_v5_state');
   const today = new Date().toDateString();
-
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved);
-      return {
-        xp: parsed.xp || 0,
-        streak: parsed.streak || 0,
-        streakFreeze: parsed.streakFreeze || false,
-        examMode: parsed.examMode || false,
-        completedHabits: new Set(parsed.completedHabits || []),
-        bonusClaimed: parsed.bonusClaimed || false,
-        lastDate: parsed.lastDate || today,
-        history: parsed.history || [],
-        unlockedBadges: new Set(parsed.unlockedBadges || []),
-        bossesDefeated: parsed.bossesDefeated || 0,
-        bosses: parsed.bosses || [
-          { id: 'b1', name: 'Certamen 2: Cálculo II', maxHp: 300, hp: 300, xpReward: 200, icon: 'fa-calculator' },
-          { id: 'b2', name: 'Proyecto: Programación', maxHp: 200, hp: 200, xpReward: 150, icon: 'fa-code' }
-        ]
-      };
-    } catch (e) {}
-  }
-  return {
+  const defaultState = {
     xp: 0, streak: 0, streakFreeze: false, examMode: false,
     completedHabits: new Set(), bonusClaimed: false, lastDate: today,
     history: [], unlockedBadges: new Set(), bossesDefeated: 0,
@@ -101,7 +60,50 @@ function loadState() {
       { id: 'b2', name: 'Proyecto: Programación', maxHp: 200, hp: 200, xpReward: 150, icon: 'fa-code' }
     ]
   };
+
+  try {
+    const saved = localStorage.getItem('lifepg_v5_state');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object') {
+        return {
+          xp: typeof parsed.xp === 'number' ? parsed.xp : 0,
+          streak: parsed.streak || 0,
+          streakFreeze: !!parsed.streakFreeze,
+          examMode: !!parsed.examMode,
+          completedHabits: new Set(Array.isArray(parsed.completedHabits) ? parsed.completedHabits : []),
+          bonusClaimed: !!parsed.bonusClaimed,
+          lastDate: parsed.lastDate || today,
+          history: Array.isArray(parsed.history) ? parsed.history : [],
+          unlockedBadges: new Set(Array.isArray(parsed.unlockedBadges) ? parsed.unlockedBadges : []),
+          bossesDefeated: parsed.bossesDefeated || 0,
+          bosses: Array.isArray(parsed.bosses) && parsed.bosses.length > 0 ? parsed.bosses : defaultState.bosses
+        };
+      }
+    }
+  } catch (e) {
+    console.error('Error loading state:', e);
+  }
+  return defaultState;
 }
+
+let state = loadState();
+let timerInterval = null, timeLeft = 25 * 60, isTimerRunning = false, currentPreset = 25;
+
+window.onload = function init() {
+  checkDailyReset();
+  renderHabits();
+  renderDaysSelector();
+  renderSchedule(getCurrentDay());
+  renderShop();
+  renderBosses();
+  checkBadges();
+  renderBadges();
+  renderHistory();
+  checkBonusUI();
+  updateUIElements();
+  updateDashboard();
+};
 
 function saveState() {
   const dataToSave = {
@@ -135,8 +137,11 @@ function checkDailyReset() {
 // Interfaz y Navegación
 function switchTab(tabId) {
   document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
-  document.getElementById(`sec-${tabId}`).classList.remove('hidden');
-  document.getElementById(`sec-${tabId}`).classList.add('flex');
+  const targetSec = document.getElementById(`sec-${tabId}`);
+  if (targetSec) {
+    targetSec.classList.remove('hidden');
+    targetSec.classList.add('flex');
+  }
 
   document.querySelectorAll('div.grid.grid-cols-5 > button').forEach(btn => {
     btn.className = "py-2 rounded-lg hover:text-white transition-all text-slate-400";
@@ -144,8 +149,10 @@ function switchTab(tabId) {
   });
 
   const activeBtn = document.getElementById(`tab-btn-${tabId}`);
-  activeBtn.className = "py-2 rounded-lg bg-indigo-600 text-white shadow transition-all";
-  if (tabId === 'jefes') activeBtn.classList.add('flex', 'items-center', 'justify-center', 'gap-1');
+  if (activeBtn) {
+    activeBtn.className = "py-2 rounded-lg bg-indigo-600 text-white shadow transition-all";
+    if (tabId === 'jefes') activeBtn.classList.add('flex', 'items-center', 'justify-center', 'gap-1');
+  }
 }
 
 function updateDashboard() {
@@ -154,12 +161,19 @@ function updateDashboard() {
   const nextLevelXp = 500;
   const percentage = Math.max(0, (currentLevelXp / nextLevelXp) * 100);
 
-  document.getElementById('user-level').innerText = level;
-  document.getElementById('user-xp').innerText = state.xp;
-  document.getElementById('next-level-xp').innerText = level * 500;
-  document.getElementById('xp-bar').style.width = `${percentage}%`;
-  document.getElementById('streak-count').innerText = state.streak;
-  document.getElementById('shop-balance').innerText = `${state.xp} XP Disp.`;
+  const lvlEl = document.getElementById('user-level');
+  const xpEl = document.getElementById('user-xp');
+  const nxtEl = document.getElementById('next-level-xp');
+  const barEl = document.getElementById('xp-bar');
+  const strkEl = document.getElementById('streak-count');
+  const balEl = document.getElementById('shop-balance');
+
+  if (lvlEl) lvlEl.innerText = level;
+  if (xpEl) xpEl.innerText = state.xp;
+  if (nxtEl) nxtEl.innerText = level * 500;
+  if (barEl) barEl.style.width = `${percentage}%`;
+  if (strkEl) strkEl.innerText = state.streak;
+  if (balEl) balEl.innerText = `${state.xp} XP Disp.`;
 
   if (!window.currentLevel) window.currentLevel = level;
   if (level > window.currentLevel) {
@@ -185,27 +199,33 @@ function toggleExamMode() {
 function updateUIElements() {
   const btnFreeze = document.getElementById('btn-freeze');
   const freezeStatus = document.getElementById('freeze-status');
-  if (state.streakFreeze) {
-    btnFreeze.className = "flex items-center gap-1 bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 px-2.5 py-1.5 rounded-xl text-xs font-bold transition";
-    freezeStatus.innerText = "On";
-  } else {
-    btnFreeze.className = "flex items-center gap-1 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2.5 py-1.5 rounded-xl text-xs font-bold transition hover:bg-cyan-500/20";
-    freezeStatus.innerText = "Off";
+  if (btnFreeze && freezeStatus) {
+    if (state.streakFreeze) {
+      btnFreeze.className = "flex items-center gap-1 bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 px-2.5 py-1.5 rounded-xl text-xs font-bold transition";
+      freezeStatus.innerText = "On";
+    } else {
+      btnFreeze.className = "flex items-center gap-1 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2.5 py-1.5 rounded-xl text-xs font-bold transition hover:bg-cyan-500/20";
+      freezeStatus.innerText = "Off";
+    }
   }
 
   const btnExam = document.getElementById('btn-exam-mode');
-  if (state.examMode) {
-    btnExam.className = "px-3 py-1 rounded-lg text-xs font-bold bg-rose-600 text-white shadow";
-    btnExam.innerText = "Activo";
-  } else {
-    btnExam.className = "px-3 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700 transition";
-    btnExam.innerText = "Inactivo";
+  if (btnExam) {
+    if (state.examMode) {
+      btnExam.className = "px-3 py-1 rounded-lg text-xs font-bold bg-rose-600 text-white shadow";
+      btnExam.innerText = "Activo";
+    } else {
+      btnExam.className = "px-3 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700 transition";
+      btnExam.innerText = "Inactivo";
+    }
   }
 }
 
 // Gestión de Hábitos
 function renderHabits() {
   const container = document.getElementById('habits-container');
+  if (!container || typeof habits === 'undefined') return;
+
   container.innerHTML = habits.map(h => {
     const checked = state.completedHabits.has(h.id);
     const earnedXp = (h.id === 'h1' && state.examMode) ? h.xp * 2 : h.xp;
@@ -236,7 +256,10 @@ function renderHabits() {
 }
 
 function toggleHabit(id) {
+  if (typeof habits === 'undefined') return;
   const habit = habits.find(h => h.id === id);
+  if (!habit) return;
+
   const earnedXp = (id === 'h1' && state.examMode) ? habit.xp * 2 : habit.xp;
   const cardEl = document.getElementById(`habit-card-${id}`);
 
@@ -270,6 +293,8 @@ function checkBonusUI() {
   const btnClaim = document.getElementById('btn-claim-bonus');
   const iconDone = document.getElementById('bonus-icon');
 
+  if (!banner || !btnClaim || !iconDone) return;
+
   if (state.bonusClaimed) {
     banner.className = "rounded-2xl p-4 border flex items-center justify-between transition-all bg-emerald-950/30 border-emerald-500/30 text-emerald-400";
     btnClaim.classList.add('hidden');
@@ -299,9 +324,11 @@ function claimBonus() {
 
 // Pomodoro Focus
 function updateTimerDisplay() {
+  const display = document.getElementById('timer-display');
+  if (!display) return;
   const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
   const s = (timeLeft % 60).toString().padStart(2, '0');
-  document.getElementById('timer-display').innerText = `${m}:${s}`;
+  display.innerText = `${m}:${s}`;
 }
 
 function setTimerPreset(minutes) {
@@ -313,6 +340,8 @@ function setTimerPreset(minutes) {
 
 function toggleTimer() {
   const btn = document.getElementById('btn-timer-start');
+  if (!btn) return;
+
   if (isTimerRunning) {
     clearInterval(timerInterval);
     isTimerRunning = false;
@@ -339,8 +368,10 @@ function resetTimer() {
   timeLeft = currentPreset * 60;
   updateTimerDisplay();
   const btn = document.getElementById('btn-timer-start');
-  btn.innerText = "Iniciar";
-  btn.className = "flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow transition";
+  if (btn) {
+    btn.innerText = "Iniciar";
+    btn.className = "flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow transition";
+  }
 }
 
 function completePomodoro() {
@@ -359,6 +390,9 @@ function completePomodoro() {
 // Jefes
 function renderBosses() {
   const container = document.getElementById('bosses-container');
+  const badge = document.getElementById('boss-badge');
+  if (!container) return;
+
   if (state.bosses.length === 0) {
     container.innerHTML = `
       <div class="glass-card rounded-2xl p-6 text-center text-slate-400">
@@ -367,11 +401,12 @@ function renderBosses() {
         <p class="text-xs mt-1">Has derrotado a todos los jefes actuales.</p>
       </div>
     `;
-    document.getElementById('boss-badge').classList.add('hidden');
+    if (badge) badge.classList.add('hidden');
     return;
   }
 
-  document.getElementById('boss-badge').classList.remove('hidden');
+  if (badge) badge.classList.remove('hidden');
+
   container.innerHTML = state.bosses.map(boss => {
     const hpPercent = Math.max(0, (boss.hp / boss.maxHp) * 100);
     const isLowHp = hpPercent < 30;
@@ -429,12 +464,15 @@ function damageBosses(dmgAmount) {
 
 // Horarios
 function getCurrentDay() {
+  if (typeof daysOfWeek === 'undefined') return 'Lunes';
   const dayIndex = new Date().getDay();
   return dayIndex === 0 ? 'Domingo' : daysOfWeek[dayIndex - 1];
 }
 
 function renderDaysSelector() {
   const container = document.getElementById('day-selector');
+  if (!container || typeof daysOfWeek === 'undefined') return;
+
   container.innerHTML = daysOfWeek.map(day => `
     <button onclick="renderSchedule('${day}')" id="day-btn-${day}" class="day-btn text-xs font-bold px-3 py-2 rounded-xl transition-all ${day === getCurrentDay() ? 'bg-indigo-600 text-white shadow' : 'bg-slate-800 text-slate-400'}">
       ${day.substring(0,3)}
@@ -450,8 +488,9 @@ function renderSchedule(selectedDay) {
   if (activeBtn) activeBtn.className = "day-btn text-xs font-bold px-3 py-2 rounded-xl bg-indigo-600 text-white transition-all shadow";
 
   const container = document.getElementById('schedule-container');
+  if (!container || typeof scheduleData === 'undefined') return;
+
   const classes = scheduleData[selectedDay] || [];
-  
   if (classes.length === 0) {
     container.innerHTML = `<p class="text-sm text-slate-400 text-center py-4">Sin actividades programadas.</p>`;
     return;
@@ -480,6 +519,8 @@ function renderSchedule(selectedDay) {
 // Tienda e Insignias
 function renderShop() {
   const container = document.getElementById('shop-container');
+  if (!container || typeof rewards === 'undefined') return;
+
   container.innerHTML = rewards.map(r => {
     const canAfford = state.xp >= r.xp;
     return `
@@ -502,7 +543,10 @@ function renderShop() {
 }
 
 function buyReward(id) {
+  if (typeof rewards === 'undefined') return;
   const reward = rewards.find(r => r.id === id);
+  if (!reward) return;
+
   if (state.xp >= reward.xp) {
     state.xp -= reward.xp;
     playSound('buy');
@@ -519,4 +563,75 @@ function buyReward(id) {
   }
 }
 
-function renderHistory(
+function renderHistory() {
+  const container = document.getElementById('redemption-history');
+  if (!container) return;
+
+  if (state.history.length === 0) {
+    container.innerHTML = `<span class="text-slate-500 italic">Aún no has canjeado recompensas.</span>`;
+    return;
+  }
+
+  container.innerHTML = state.history.map(item => `
+    <div class="flex justify-between items-center py-1.5 border-b border-slate-700/50 last:border-0">
+      <span class="text-slate-300">${item.title}</span>
+      <span class="text-rose-400 font-bold">-${item.xp} XP</span>
+    </div>
+  `).join('');
+}
+
+function checkBadges() {
+  let changed = false;
+  const level = Math.floor(state.xp / 500) + 1;
+
+  if (state.completedHabits.size > 0 && !state.unlockedBadges.has('b_first')) {
+    state.unlockedBadges.add('b_first');
+    changed = true;
+  }
+  if (level >= 5 && !state.unlockedBadges.has('b_lvl5')) {
+    state.unlockedBadges.add('b_lvl5');
+    changed = true;
+  }
+  if (state.bossesDefeated > 0 && !state.unlockedBadges.has('b_boss')) {
+    state.unlockedBadges.add('b_boss');
+    changed = true;
+  }
+
+  if (changed) {
+    saveState();
+    renderBadges();
+  }
+}
+
+function renderBadges() {
+  const container = document.getElementById('badges-container');
+  if (!container || typeof badges === 'undefined') return;
+
+  container.innerHTML = badges.map(b => {
+    const unlocked = state.unlockedBadges.has(b.id);
+    return `
+      <div class="flex flex-col items-center text-center p-2 rounded-xl border ${unlocked ? 'bg-indigo-900/30 border-indigo-500/30' : 'bg-slate-800/30 border-slate-700/30 opacity-50'}">
+        <div class="w-10 h-10 rounded-full mb-1 flex items-center justify-center text-lg ${unlocked ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-800 text-slate-500'}">
+          <i class="fa-solid ${b.icon}"></i>
+        </div>
+        <div class="text-[10px] font-bold ${unlocked ? 'text-slate-200' : 'text-slate-500'} leading-tight">${b.title}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Botones de Reinicio
+function resetXPOnly() {
+  if (confirm("¿Seguro que quieres reiniciar tus XP acumuladas a 0? (Tus hábitos completados hoy no se borrarán)")) {
+    state.xp = 0;
+    saveState();
+    renderShop();
+  }
+}
+
+function resetAllData() {
+  if (confirm("¿Estás seguro de que deseas borrar TODO tu progreso? Esta acción no se puede deshacer.")) {
+    localStorage.removeItem('lifepg_v5_state');
+    location.reload();
+  }
+}
