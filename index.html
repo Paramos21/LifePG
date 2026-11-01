@@ -92,7 +92,7 @@
       <button onclick="switchTab('tienda')" id="tab-btn-tienda" class="py-2 rounded-lg hover:text-white transition-all">Tienda</button>
     </div>
 
-    <!-- COLUMNA 1 (Check-in / Hábitos) -->
+    <!-- COLUMNA 1 (Check-in / Hábitos / Calendario) -->
     <div class="flex flex-col gap-5">
       <section id="sec-checkin" class="flex flex-col gap-4 lg:!flex">
         <div class="flex justify-between items-center bg-rose-950/30 border border-rose-500/20 p-3 rounded-2xl">
@@ -123,6 +123,17 @@
           </div>
           <button onclick="claimBonus()" id="btn-claim-bonus" class="hidden px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-amber-950 text-xs font-bold rounded-lg transition">Reclamar</button>
           <i id="bonus-icon" class="fa-solid fa-circle-xmark text-slate-600 text-xl hidden"></i>
+        </div>
+
+        <!-- CALENDARIO DE RACHA DE TRÍADA -->
+        <div class="glass-card rounded-2xl p-4 flex flex-col gap-3">
+          <div class="flex justify-between items-center">
+            <h3 class="text-xs font-bold text-slate-300 flex items-center gap-2">
+              <i class="fa-solid fa-calendar-check text-amber-400"></i> Racha de Tríada (Estudio + Trabajo + Aseo)
+            </h3>
+            <span id="calendar-month-year" class="text-xs font-bold text-amber-400"></span>
+          </div>
+          <div id="streak-calendar-grid" class="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-400"></div>
         </div>
       </section>
     </div>
