@@ -1,3 +1,12 @@
+// Helper para obtener fecha en formato YYYY-MM-DD
+function getTodayStr() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 // Sintetizador Audio Web
 function playSound(type) {
   try {
@@ -54,6 +63,7 @@ function loadState() {
   const defaultState = {
     xp: 0, streak: 0, streakFreeze: false, examMode: false,
     completedHabits: new Set(), bonusClaimed: false, lastDate: today,
+    completedBonusDates: [],
     history: [], unlockedBadges: new Set(), bossesDefeated: 0,
     bosses: [
       { id: 'b1', name: 'Certamen 2: Cálculo II', maxHp: 300, hp: 300, xpReward: 200, icon: 'fa-calculator', defeated: false },
@@ -62,7 +72,7 @@ function loadState() {
   };
 
   try {
-    const saved = localStorage.getItem('lifepg_v6_state');
+    const saved = localStorage.getItem('lifepg_v7_state');
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed && typeof parsed === 'object') {
@@ -74,6 +84,7 @@ function loadState() {
           completedHabits: new Set(Array.isArray(parsed.completedHabits) ? parsed.completedHabits : []),
           bonusClaimed: !!parsed.bonusClaimed,
           lastDate: parsed.lastDate || today,
+          completedBonusDates: Array.isArray(parsed.completedBonusDates) ? parsed.completedBonusDates : [],
           history: Array.isArray(parsed.history) ? parsed.history : [],
           unlockedBadges: new Set(Array.isArray(parsed.unlockedBadges) ? parsed.unlockedBadges : []),
           bossesDefeated: parsed.bossesDefeated || 0,
@@ -91,6 +102,7 @@ let timerInterval = null, timeLeft = 25 * 60, isTimerRunning = false, currentPre
 window.onload = function init() {
   checkDailyReset();
   renderHabits();
+  renderStreakCalendar();
   renderDaysSelector();
   renderSchedule(getCurrentDay());
   renderShop();
@@ -112,16 +124,16 @@ function saveState() {
     completedHabits: Array.from(state.completedHabits),
     bonusClaimed: state.bonusClaimed,
     lastDate: state.lastDate,
+    completedBonusDates: state.completedBonusDates || [],
     history: state.history.slice(0, 10),
     unlockedBadges: Array.from(state.unlockedBadges),
     bosses: state.bosses,
     bossesDefeated: state.bossesDefeated
   };
-  localStorage.setItem('lifepg_v6_state', JSON.stringify(dataToSave));
+  localStorage.setItem('lifepg_v7_state', JSON.stringify(dataToSave));
   updateDashboard();
 }
 
-// Reset diario a la medianoche (Elimina permanentemente jefes con HP 0 y limpia hábitos)
 function checkDailyReset() {
   const today = new Date().toDateString();
   if (state.lastDate !== today) {
@@ -135,7 +147,6 @@ function checkDailyReset() {
   }
 }
 
-// Navegación Pestañas
 function switchTab(tabId) {
   document.querySelectorAll('main section').forEach(sec => sec.classList.add('hidden'));
   const targetSec = document.getElementById(`sec-${tabId}`);
@@ -173,7 +184,7 @@ function updateDashboard() {
   if (xpEl) xpEl.innerText = state.xp;
   if (nxtEl) nxtEl.innerText = level * 500;
   if (barEl) barEl.style.width = `${percentage}%`;
-  if (strkEl) strkEl.innerText = state.streak;
+  if (strkEl) strkEl.innerText = state.completedBonusDates ? state.completedBonusDates.length : 0;
   if (balEl) balEl.innerText = `${state.xp} XP Disp.`;
 
   if (!window.currentLevel) window.currentLevel = level;
@@ -269,7 +280,6 @@ function toggleHabit(id) {
     state.xp = Math.max(0, state.xp - earnedXp);
     playSound('uncheck');
 
-    // Recupera vida del jefe si se desmarca
     if (id === 'h1') healBosses(30);
   } else {
     state.completedHabits.add(id);
@@ -281,7 +291,6 @@ function toggleHabit(id) {
       setTimeout(() => cardEl.classList.remove('habit-pop'), 350);
     }
 
-    // Aplica daño al jefe al marcar
     if (id === 'h1') damageBosses(30);
   }
   
@@ -297,6 +306,22 @@ function checkBonusUI() {
   const banner = document.getElementById('bonus-banner');
   const btnClaim = document.getElementById('btn-claim-bonus');
   const iconDone = document.getElementById('bonus-icon');
+
+  const todayStr = getTodayStr();
+
+  // Actualizar lista de fechas con Racha de Tríada
+  if (hasP1 && hasP2 && hasP3) {
+    if (!state.completedBonusDates.includes(todayStr)) {
+      state.completedBonusDates.push(todayStr);
+    }
+  } else {
+    const idx = state.completedBonusDates.indexOf(todayStr);
+    if (idx > -1) {
+      state.completedBonusDates.splice(idx, 1);
+    }
+  }
+
+  renderStreakCalendar();
 
   if (!banner || !btnClaim || !iconDone) return;
 
@@ -325,6 +350,50 @@ function claimBonus() {
     saveState();
     checkBonusUI();
   }
+}
+
+// Renders del Calendario de Racha
+function renderStreakCalendar() {
+  const gridEl = document.getElementById('streak-calendar-grid');
+  const monthYearEl = document.getElementById('calendar-month-year');
+  if (!gridEl) return;
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+
+  const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  if (monthYearEl) monthYearEl.innerText = `${monthNames[month]} ${year}`;
+
+  const dayHeaders = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+  let html = dayHeaders.map(d => `<div class="py-1 text-slate-500 font-bold">${d}</div>`).join('');
+
+  const firstDayIndex = (new Date(year, month, 1).getDay() + 6) % 7;
+  const totalDays = new Date(year, month + 1, 0).getDate();
+
+  for (let i = 0; i < firstDayIndex; i++) {
+    html += `<div></div>`;
+  }
+
+  const todayNum = now.getDate();
+  for (let day = 1; day <= totalDays; day++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const isCompleted = state.completedBonusDates && state.completedBonusDates.includes(dateStr);
+    const isToday = day === todayNum;
+
+    let bgClass = 'bg-slate-800/40 text-slate-400';
+    let borderClass = isToday ? 'border border-indigo-500/60' : 'border border-slate-700/30';
+    let content = day;
+
+    if (isCompleted) {
+      bgClass = 'bg-amber-500/20 text-amber-300 font-extrabold border border-amber-500/50 shadow-sm shadow-amber-500/20';
+      content = `<i class="fa-solid fa-fire text-[9px] text-amber-400"></i> ${day}`;
+    }
+
+    html += `<div class="py-1.5 rounded-lg flex items-center justify-center gap-0.5 ${bgClass} ${borderClass}">${content}</div>`;
+  }
+
+  gridEl.innerHTML = html;
 }
 
 // Pomodoro Focus
@@ -484,7 +553,6 @@ function healBosses(healAmount) {
   renderBosses();
 }
 
-// Agregar y Eliminar Jefes Manualmente
 function toggleBossForm() {
   const form = document.getElementById('add-boss-form');
   if (form) form.classList.toggle('hidden');
@@ -504,7 +572,7 @@ function addNewBoss() {
   const icon = iconInput ? iconInput.value : 'fa-skull';
 
   if (!name || isNaN(hp) || hp <= 0 || isNaN(xp) || xp < 0) {
-    alert("Por favor completa los campos de Nombre, HP y XP correctamente.");
+    alert("Por favor completa los campos correctamente.");
     return;
   }
 
@@ -706,7 +774,7 @@ function resetXPOnly() {
 
 function resetAllData() {
   if (confirm("¿Estás seguro de que deseas borrar TODO tu progreso? Esta acción no se puede deshacer.")) {
-    localStorage.removeItem('lifepg_v6_state');
+    localStorage.removeItem('lifepg_v7_state');
     location.reload();
   }
 }
