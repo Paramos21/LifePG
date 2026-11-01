@@ -1,4 +1,4 @@
-// Helper para obtener fecha en formato YYYY-MM-DD
+// Helper para fecha YYYY-MM-DD
 function getTodayStr() {
   const d = new Date();
   const year = d.getFullYear();
@@ -64,11 +64,10 @@ function loadState() {
     xp: 0, streak: 0, streakFreeze: false, examMode: false,
     completedHabits: new Set(), bonusClaimed: false, lastDate: today,
     completedBonusDates: [],
-    pomodoroDamageToday: 0,
     history: [], unlockedBadges: new Set(), bossesDefeated: 0,
     bosses: [
-      { id: 'b1', name: 'Certamen 2: Cálculo II', maxHp: 300, currentHp: 300, xpReward: 200, icon: 'fa-calculator' },
-      { id: 'b2', name: 'Proyecto: Programación', maxHp: 200, currentHp: 200, xpReward: 150, icon: 'fa-code' }
+      { id: 'b1', name: 'Certamen 2: Cálculo II', maxHp: 300, hp: 300, xpReward: 200, icon: 'fa-calculator', defeated: false },
+      { id: 'b2', name: 'Proyecto: Programación', maxHp: 200, hp: 200, xpReward: 150, icon: 'fa-code', defeated: false }
     ]
   };
 
@@ -86,18 +85,10 @@ function loadState() {
           bonusClaimed: !!parsed.bonusClaimed,
           lastDate: parsed.lastDate || today,
           completedBonusDates: Array.isArray(parsed.completedBonusDates) ? parsed.completedBonusDates : [],
-          pomodoroDamageToday: typeof parsed.pomodoroDamageToday === 'number' ? parsed.pomodoroDamageToday : 0,
           history: Array.isArray(parsed.history) ? parsed.history : [],
           unlockedBadges: new Set(Array.isArray(parsed.unlockedBadges) ? parsed.unlockedBadges : []),
           bossesDefeated: parsed.bossesDefeated || 0,
-          bosses: Array.isArray(parsed.bosses) && parsed.bosses.length > 0 ? parsed.bosses.map(b => ({
-            id: b.id,
-            name: b.name,
-            maxHp: b.maxHp,
-            currentHp: typeof b.currentHp === 'number' ? b.currentHp : (typeof b.hp === 'number' ? b.hp : b.maxHp),
-            xpReward: b.xpReward,
-            icon: b.icon
-          })) : defaultState.bosses
+          bosses: Array.isArray(parsed.bosses) && parsed.bosses.length > 0 ? parsed.bosses : defaultState.bosses
         };
       }
     }
@@ -134,7 +125,6 @@ function saveState() {
     bonusClaimed: state.bonusClaimed,
     lastDate: state.lastDate,
     completedBonusDates: state.completedBonusDates || [],
-    pomodoroDamageToday: state.pomodoroDamageToday || 0,
     history: state.history.slice(0, 10),
     unlockedBadges: Array.from(state.unlockedBadges),
     bosses: state.bosses,
@@ -144,35 +134,11 @@ function saveState() {
   updateDashboard();
 }
 
-// Calcula el daño total generado el día de hoy
-function getTodayDamage() {
-  let dmg = state.pomodoroDamageToday || 0;
-  if (state.completedHabits.has('h1')) {
-    dmg += state.examMode ? 60 : 30;
-  }
-  return dmg;
-}
-
-// A medianoche se descuenta el daño de hoy del HP permanente y se limpian hábitos
 function checkDailyReset() {
   const today = new Date().toDateString();
   if (state.lastDate !== today) {
-    const todayDmg = getTodayDamage();
-    if (state.bosses) {
-      state.bosses.forEach(boss => {
-        boss.currentHp = Math.max(0, boss.currentHp - todayDmg);
-        if (boss.currentHp === 0 && !boss.defeated) {
-          boss.defeated = true;
-          state.xp += boss.xpReward;
-          state.bossesDefeated = (state.bossesDefeated || 0) + 1;
-        }
-      });
-      // Filtrar jefes derrotados definitivamente
-      state.bosses = state.bosses.filter(b => b.currentHp > 0);
-    }
     state.completedHabits.clear();
     state.bonusClaimed = false;
-    state.pomodoroDamageToday = 0;
     state.lastDate = today;
     saveState();
   }
@@ -180,7 +146,18 @@ function checkDailyReset() {
 
 function switchTab(tabId) {
   document.querySelectorAll('main section').forEach(sec => sec.classList.add('hidden'));
-  const targetSec = document.getElementById(`sec-${tabId}`); if (targetSec) { targetSec.classList.remove('hidden'); targetSec.classList.add('flex'); }  document.querySelectorAll('div.grid.grid-cols-5 > button').forEach(btn => { btn.className = "py-2 rounded-lg hover:text-white transition-all text-slate-400"; if (btn.id === 'tab-btn-jefes') btn.classList.add('flex', 'items-center', 'justify-center', 'gap-1'); });  const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+  const targetSec = document.getElementById(`sec-${tabId}`);
+  if (targetSec) {
+    targetSec.classList.remove('hidden');
+    targetSec.classList.add('flex');
+  }
+
+  document.querySelectorAll('div.grid.grid-cols-5 > button').forEach(btn => {
+    btn.className = "py-2 rounded-lg hover:text-white transition-all text-slate-400";
+    if (btn.id === 'tab-btn-jefes') btn.classList.add('flex', 'items-center', 'justify-center', 'gap-1');
+  });
+
+  const activeBtn = document.getElementById(`tab-btn-${tabId}`);
   if (activeBtn) {
     activeBtn.className = "py-2 rounded-lg bg-indigo-600 text-white shadow transition-all";
     if (tabId === 'jefes') activeBtn.classList.add('flex', 'items-center', 'justify-center', 'gap-1');
@@ -203,7 +180,9 @@ function updateDashboard() {
   if (lvlEl) lvlEl.innerText = level;
   if (xpEl) xpEl.innerText = state.xp;
   if (nxtEl) nxtEl.innerText = level * 500;
-  if (barEl) barEl.style.width = `${percentage}\%`; if (strkEl) strkEl.innerText = state.completedBonusDates ? state.completedBonusDates.length : 0; if (balEl) balEl.innerText = `${state.xp} XP Disp.`;
+  if (barEl) barEl.style.width = `${percentage}%`;
+  if (strkEl) strkEl.innerText = state.completedBonusDates ? state.completedBonusDates.length : 0;
+  if (balEl) balEl.innerText = `${state.xp} XP Disp.`;
 
   if (!window.currentLevel) window.currentLevel = level;
   if (level > window.currentLevel) {
@@ -224,7 +203,6 @@ function toggleExamMode() {
   saveState();
   updateUIElements();
   renderHabits();
-  renderBosses();
 }
 
 function updateUIElements() {
@@ -298,6 +276,8 @@ function toggleHabit(id) {
     state.completedHabits.delete(id);
     state.xp = Math.max(0, state.xp - earnedXp);
     playSound('uncheck');
+
+    if (id === 'h1') healBosses(30);
   } else {
     state.completedHabits.add(id);
     state.xp += earnedXp;
@@ -307,11 +287,12 @@ function toggleHabit(id) {
       cardEl.classList.add('habit-pop');
       setTimeout(() => cardEl.classList.remove('habit-pop'), 350);
     }
+
+    if (id === 'h1') damageBosses(30);
   }
   
   saveState();
   renderHabits();
-  renderBosses(); // Actualiza la vida de los jefes dinámicamente
 }
 
 function checkBonusUI() {
@@ -367,7 +348,7 @@ function claimBonus() {
   }
 }
 
-// Calendario de Racha
+// Renders del Calendario de Racha
 function renderStreakCalendar() {
   const gridEl = document.getElementById('streak-calendar-grid');
   const monthYearEl = document.getElementById('calendar-month-year');
@@ -378,10 +359,21 @@ function renderStreakCalendar() {
   const month = now.getMonth();
 
   const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-  if (monthYearEl) monthYearEl.innerText = `${monthNames[month]}${year}`;
+  if (monthYearEl) monthYearEl.innerText = `${monthNames[month]} ${year}`;
 
   const dayHeaders = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
-  let html = dayHeaders.map(d => `<div class="py-1 text-slate-500 font-bold">${d}</div>`).join('');  const firstDayIndex = (new Date(year, month, 1).getDay() + 6) \% 7; const totalDays = new Date(year, month + 1, 0).getDate();  for (let i = 0; i < firstDayIndex; i++) { html += `<div></div>`; }  const todayNum = now.getDate(); for (let day = 1; day <= totalDays; day++) { const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  let html = dayHeaders.map(d => `<div class="py-1 text-slate-500 font-bold">${d}</div>`).join('');
+
+  const firstDayIndex = (new Date(year, month, 1).getDay() + 6) % 7;
+  const totalDays = new Date(year, month + 1, 0).getDate();
+
+  for (let i = 0; i < firstDayIndex; i++) {
+    html += `<div></div>`;
+  }
+
+  const todayNum = now.getDate();
+  for (let day = 1; day <= totalDays; day++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const isCompleted = state.completedBonusDates && state.completedBonusDates.includes(dateStr);
     const isToday = day === todayNum;
 
@@ -394,7 +386,72 @@ function renderStreakCalendar() {
       content = `<i class="fa-solid fa-fire text-[9px] text-amber-400"></i> ${day}`;
     }
 
-    html += `<div class="py-1.5 rounded-lg flex items-center justify-center gap-0.5 ${bgClass}${borderClass}">${content}</div>`; }  gridEl.innerHTML = html; }  // Pomodoro Focus function updateTimerDisplay() { const display = document.getElementById('timer-display'); if (!display) return; const m = Math.floor(timeLeft / 60).toString().padStart(2, '0'); const s = (timeLeft \% 60).toString().padStart(2, '0'); display.innerText = `${m}:${s}`; }  function setTimerPreset(minutes) { if (isTimerRunning) return; currentPreset = minutes; timeLeft = minutes * 60; updateTimerDisplay(); }  function toggleTimer() { const btn = document.getElementById('btn-timer-start'); if (!btn) return;  if (isTimerRunning) { clearInterval(timerInterval); isTimerRunning = false; btn.innerText = "Reanudar"; btn.className = "flex-1 py-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-sm shadow transition"; } else { isTimerRunning = true; btn.innerText = "Pausar"; btn.className = "flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow transition"; timerInterval = setInterval(() => { if (timeLeft > 0) { timeLeft--; updateTimerDisplay(); } else { completePomodoro(); } }, 1000); } }  function resetTimer() { clearInterval(timerInterval); isTimerRunning = false; timeLeft = currentPreset * 60; updateTimerDisplay(); const btn = document.getElementById('btn-timer-start'); if (btn) { btn.innerText = "Iniciar"; btn.className = "flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow transition"; } }  function completePomodoro() { resetTimer(); playSound('levelUp'); if (currentPreset >= 25) { state.xp += 20; state.pomodoroDamageToday = (state.pomodoroDamageToday \vert{}\vert{} 0) + 25; saveState(); renderBosses(); alert(`¡Sesión de ${currentPreset} min completada! Ganaste 20 XP y dañaste a los jefes.`);
+    html += `<div class="py-1.5 rounded-lg flex items-center justify-center gap-0.5 ${bgClass} ${borderClass}">${content}</div>`;
+  }
+
+  gridEl.innerHTML = html;
+}
+
+// Pomodoro Focus
+function updateTimerDisplay() {
+  const display = document.getElementById('timer-display');
+  if (!display) return;
+  const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+  const s = (timeLeft % 60).toString().padStart(2, '0');
+  display.innerText = `${m}:${s}`;
+}
+
+function setTimerPreset(minutes) {
+  if (isTimerRunning) return;
+  currentPreset = minutes;
+  timeLeft = minutes * 60;
+  updateTimerDisplay();
+}
+
+function toggleTimer() {
+  const btn = document.getElementById('btn-timer-start');
+  if (!btn) return;
+
+  if (isTimerRunning) {
+    clearInterval(timerInterval);
+    isTimerRunning = false;
+    btn.innerText = "Reanudar";
+    btn.className = "flex-1 py-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-sm shadow transition";
+  } else {
+    isTimerRunning = true;
+    btn.innerText = "Pausar";
+    btn.className = "flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow transition";
+    timerInterval = setInterval(() => {
+      if (timeLeft > 0) {
+        timeLeft--;
+        updateTimerDisplay();
+      } else {
+        completePomodoro();
+      }
+    }, 1000);
+  }
+}
+
+function resetTimer() {
+  clearInterval(timerInterval);
+  isTimerRunning = false;
+  timeLeft = currentPreset * 60;
+  updateTimerDisplay();
+  const btn = document.getElementById('btn-timer-start');
+  if (btn) {
+    btn.innerText = "Iniciar";
+    btn.className = "flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow transition";
+  }
+}
+
+function completePomodoro() {
+  resetTimer();
+  playSound('levelUp');
+  if (currentPreset >= 25) {
+    state.xp += 20;
+    damageBosses(25);
+    saveState();
+    alert(`¡Sesión de ${currentPreset} min completada! Ganaste 20 XP y dañaste a los jefes.`);
   } else {
     alert("¡Descanso terminado! Volvamos al trabajo.");
   }
@@ -420,31 +477,31 @@ function renderBosses() {
 
   if (badge) badge.classList.remove('hidden');
 
-  const todayDmg = getTodayDamage();
-
   container.innerHTML = state.bosses.map(boss => {
-    const effectiveHp = Math.max(0, boss.currentHp - todayDmg);
-    const hpPercent = Math.max(0, (effectiveHp / boss.maxHp) * 100);
+    const hpPercent = Math.max(0, (boss.hp / boss.maxHp) * 100);
     const isLowHp = hpPercent < 30;
-    const isDefeatedToday = effectiveHp <= 0;
+    const isDefeated = boss.hp <= 0;
     
     return `
-      <div class="glass-card rounded-2xl p-4 flex flex-col gap-3 border ${isDefeatedToday ? 'border-slate-800 opacity-60' : isLowHp ? 'border-rose-500/50' : 'border-slate-700/50'}">
+      <div class="glass-card rounded-2xl p-4 flex flex-col gap-3 border ${isDefeated ? 'border-slate-800 opacity-60' : isLowHp ? 'border-rose-500/50' : 'border-slate-700/50'}">
         <div class="flex justify-between items-center">
           <div class="flex items-center gap-2">
             <div class="w-10 h-10 rounded-lg bg-rose-950/50 text-rose-400 flex items-center justify-center text-lg border border-rose-500/20">
               <i class="fa-solid ${boss.icon || 'fa-skull'}"></i>
             </div>
             <div>
-              <h3 class="text-sm font-bold text-slate-200 ${isDefeatedToday ? 'line-through text-slate-400' : ''}">${boss.name}</h3>
-              <p class="text-xs text-rose-400 font-semibold">${isDefeatedToday ? '¡Derrotado hoy!' : `HP: ${effectiveHp} / ${boss.maxHp}`}</p>
+              <h3 class="text-sm font-bold text-slate-200 ${isDefeated ? 'line-through text-slate-400' : ''}">${boss.name}</h3>
+              <p class="text-xs text-rose-400 font-semibold">${isDefeated ? '¡Derrotado!' : `HP: ${boss.hp} / ${boss.maxHp}`}</p>
             </div>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1.5">
             <div class="text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-1 rounded-lg border border-amber-500/20">
               Botín: ${boss.xpReward} XP
             </div>
-            <button onclick="deleteBoss('${boss.id}')" title="Eliminar Jefe" class="text-slate-500 hover:text-rose-400 text-xs px-1.5 py-1 transition">
+            <button onclick="resetBossHp('${boss.id}')" title="Restaurar HP a 100%" class="text-slate-500 hover:text-emerald-400 text-xs p-1.5 transition">
+              <i class="fa-solid fa-heart-pulse"></i>
+            </button>
+            <button onclick="deleteBoss('${boss.id}')" title="Eliminar Jefe" class="text-slate-500 hover:text-rose-400 text-xs p-1.5 transition">
               <i class="fa-solid fa-trash"></i>
             </button>
           </div>
@@ -455,6 +512,62 @@ function renderBosses() {
       </div>
     `;
   }).join('');
+}
+
+function damageBosses(dmgAmount) {
+  if (!state.bosses || state.bosses.length === 0) return;
+  playSound('bossHit');
+
+  state.bosses.forEach(boss => {
+    if (boss.hp > 0) {
+      boss.hp = Math.max(0, boss.hp - dmgAmount);
+      if (boss.hp === 0 && !boss.defeated) {
+        boss.defeated = true;
+        state.xp += boss.xpReward;
+        state.bossesDefeated = (state.bossesDefeated || 0) + 1;
+        setTimeout(() => alert(`¡JEFE DERROTADO: ${boss.name}! +${boss.xpReward} XP`), 200);
+      }
+    }
+  });
+
+  saveState();
+  renderBosses();
+}
+
+function healBosses(healAmount) {
+  if (!state.bosses || state.bosses.length === 0) return;
+
+  state.bosses.forEach(boss => {
+    const wasDefeated = boss.defeated || boss.hp <= 0;
+    boss.hp = Math.min(boss.maxHp, boss.hp + healAmount);
+
+    if (wasDefeated && boss.hp > 0) {
+      boss.defeated = false;
+      state.xp = Math.max(0, state.xp - boss.xpReward);
+      state.bossesDefeated = Math.max(0, (state.bossesDefeated || 0) - 1);
+    }
+  });
+
+  saveState();
+  renderBosses();
+}
+
+// Restaurar vida del jefe individual al 100%
+function resetBossHp(id) {
+  if (!state.bosses) return;
+  const boss = state.bosses.find(b => b.id === id);
+  if (boss) {
+    if (confirm(`¿Quieres restaurar la vida de "${boss.name}" al 100% (${boss.maxHp} HP)?`)) {
+      if (boss.defeated) {
+        boss.defeated = false;
+        state.xp = Math.max(0, state.xp - boss.xpReward);
+        state.bossesDefeated = Math.max(0, (state.bossesDefeated || 0) - 1);
+      }
+      boss.hp = boss.maxHp;
+      saveState();
+      renderBosses();
+    }
+  }
 }
 
 function toggleBossForm() {
@@ -484,7 +597,7 @@ function addNewBoss() {
     id: 'b_' + Date.now(),
     name: name,
     maxHp: hp,
-    currentHp: hp,
+    hp: hp,
     xpReward: xp,
     icon: icon,
     defeated: false
@@ -551,4 +664,134 @@ function renderSchedule(selectedDay) {
 
     return `
       <div class="flex items-start gap-3 p-3 rounded-xl bg-slate-800/40 border border-slate-700/50">
-        <div class="text-xs font-bold text-slate
+        <div class="text-xs font-bold text-slate-400 whitespace-nowrap mt-0.5">${cls.time}</div>
+        <div>
+          <div class="text-sm font-bold text-slate-200">${cls.name}</div>
+          <div class="text-[10px] uppercase font-bold px-2 py-0.5 rounded mt-1 inline-block border ${typeColor}">
+            ${cls.type}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Tienda
+function renderShop() {
+  const container = document.getElementById('shop-container');
+  if (!container || typeof rewards === 'undefined') return;
+
+  container.innerHTML = rewards.map(r => {
+    const canAfford = state.xp >= r.xp;
+    return `
+      <div class="glass-card rounded-2xl p-4 flex justify-between items-center border border-slate-700/50">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-lg text-indigo-400">
+            <i class="fa-solid ${r.icon}"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-200">${r.title}</h3>
+            <p class="text-xs font-bold ${canAfford ? 'text-emerald-400' : 'text-slate-500'}"><i class="fa-solid fa-coins"></i> ${r.xp} XP</p>
+          </div>
+        </div>
+        <button onclick="buyReward('${r.id}')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${canAfford ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}">
+          Canjear
+        </button>
+      </div>
+    `;
+  }).join('');
+}
+
+function buyReward(id) {
+  if (typeof rewards === 'undefined') return;
+  const reward = rewards.find(r => r.id === id);
+  if (!reward) return;
+
+  if (state.xp >= reward.xp) {
+    state.xp -= reward.xp;
+    playSound('buy');
+    
+    const date = new Date().toLocaleDateString('es-CL');
+    state.history.unshift({ title: reward.title, xp: reward.xp, date: date });
+    saveState();
+    
+    renderShop();
+    renderHistory();
+    alert(`¡Has canjeado: ${reward.title}! Disfruta tu recompensa.`);
+  } else {
+    alert("XP insuficiente.");
+  }
+}
+
+function renderHistory() {
+  const container = document.getElementById('redemption-history');
+  if (!container) return;
+
+  if (state.history.length === 0) {
+    container.innerHTML = `<span class="text-slate-500 italic">Aún no has canjeado recompensas.</span>`;
+    return;
+  }
+
+  container.innerHTML = state.history.map(item => `
+    <div class="flex justify-between items-center py-1.5 border-b border-slate-700/50 last:border-0">
+      <span class="text-slate-300">${item.title}</span>
+      <span class="text-rose-400 font-bold">-${item.xp} XP</span>
+    </div>
+  `).join('');
+}
+
+function checkBadges() {
+  let changed = false;
+  const level = Math.floor(state.xp / 500) + 1;
+
+  if (state.completedHabits.size > 0 && !state.unlockedBadges.has('b_first')) {
+    state.unlockedBadges.add('b_first');
+    changed = true;
+  }
+  if (level >= 5 && !state.unlockedBadges.has('b_lvl5')) {
+    state.unlockedBadges.add('b_lvl5');
+    changed = true;
+  }
+  if (state.bossesDefeated > 0 && !state.unlockedBadges.has('b_boss')) {
+    state.unlockedBadges.add('b_boss');
+    changed = true;
+  }
+
+  if (changed) {
+    saveState();
+    renderBadges();
+  }
+}
+
+function renderBadges() {
+  const container = document.getElementById('badges-container');
+  if (!container || typeof badges === 'undefined') return;
+
+  container.innerHTML = badges.map(b => {
+    const unlocked = state.unlockedBadges.has(b.id);
+    return `
+      <div class="flex flex-col items-center text-center p-2 rounded-xl border ${unlocked ? 'bg-indigo-900/30 border-indigo-500/30' : 'bg-slate-800/30 border-slate-700/30 opacity-50'}">
+        <div class="w-10 h-10 rounded-full mb-1 flex items-center justify-center text-lg ${unlocked ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-800 text-slate-500'}">
+          <i class="fa-solid ${b.icon}"></i>
+        </div>
+        <div class="text-[10px] font-bold ${unlocked ? 'text-slate-200' : 'text-slate-500'} leading-tight">${b.title}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Botones de Reinicio
+function resetXPOnly() {
+  if (confirm("¿Seguro que quieres reiniciar tus XP acumuladas a 0? (Tus hábitos completados hoy no se borrarán)")) {
+    state.xp = 0;
+    saveState();
+    renderShop();
+  }
+}
+
+function resetAllData() {
+  if (confirm("¿Estás seguro de que deseas borrar TODO tu progreso? Esta acción no se puede deshacer.")) {
+    localStorage.removeItem('lifepg_v8_state');
+    location.reload();
+  }
+}
