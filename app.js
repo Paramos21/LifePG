@@ -1,1 +1,522 @@
+let state = loadState();
+let timerInterval = null, timeLeft = 25 * 60, isTimerRunning = false, currentPreset = 25;
 
+window.onload = function init() {
+  checkDailyReset();
+  renderHabits();
+  renderDaysSelector();
+  renderSchedule(getCurrentDay());
+  renderShop();
+  renderBosses();
+  checkBadges();
+  renderBadges();
+  renderHistory();
+  checkBonusUI();
+  updateUIElements();
+  updateDashboard();
+};
+
+// Sintetizador Audio Web
+function playSound(type) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    if (type === 'check') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(659.25, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+      osc.start(); osc.stop(ctx.currentTime + 0.15);
+    } else if (type === 'uncheck') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(659.25, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+      osc.start(); osc.stop(ctx.currentTime + 0.12);
+    } else if (type === 'levelUp') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(440, ctx.currentTime);
+      osc.frequency.setValueAtTime(554.37, ctx.currentTime + 0.1);
+      osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.2);
+      osc.frequency.setValueAtTime(880, ctx.currentTime + 0.3);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.45);
+      osc.start(); osc.stop(ctx.currentTime + 0.45);
+    } else if (type === 'bossHit') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(150, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.2);
+      gain.gain.setValueAtTime(0.2, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+      osc.start(); osc.stop(ctx.currentTime + 0.2);
+    } else if (type === 'buy') {
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(800, ctx.currentTime);
+      osc.frequency.setValueAtTime(1200, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+      osc.start(); osc.stop(ctx.currentTime + 0.2);
+    }
+  } catch (e) {}
+}
+
+// Cargar y Guardar Estado
+function loadState() {
+  const saved = localStorage.getItem('lifepg_v5_state');
+  const today = new Date().toDateString();
+
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      return {
+        xp: parsed.xp || 0,
+        streak: parsed.streak || 0,
+        streakFreeze: parsed.streakFreeze || false,
+        examMode: parsed.examMode || false,
+        completedHabits: new Set(parsed.completedHabits || []),
+        bonusClaimed: parsed.bonusClaimed || false,
+        lastDate: parsed.lastDate || today,
+        history: parsed.history || [],
+        unlockedBadges: new Set(parsed.unlockedBadges || []),
+        bossesDefeated: parsed.bossesDefeated || 0,
+        bosses: parsed.bosses || [
+          { id: 'b1', name: 'Certamen 2: Cálculo II', maxHp: 300, hp: 300, xpReward: 200, icon: 'fa-calculator' },
+          { id: 'b2', name: 'Proyecto: Programación', maxHp: 200, hp: 200, xpReward: 150, icon: 'fa-code' }
+        ]
+      };
+    } catch (e) {}
+  }
+  return {
+    xp: 0, streak: 0, streakFreeze: false, examMode: false,
+    completedHabits: new Set(), bonusClaimed: false, lastDate: today,
+    history: [], unlockedBadges: new Set(), bossesDefeated: 0,
+    bosses: [
+      { id: 'b1', name: 'Certamen 2: Cálculo II', maxHp: 300, hp: 300, xpReward: 200, icon: 'fa-calculator' },
+      { id: 'b2', name: 'Proyecto: Programación', maxHp: 200, hp: 200, xpReward: 150, icon: 'fa-code' }
+    ]
+  };
+}
+
+function saveState() {
+  const dataToSave = {
+    xp: state.xp,
+    streak: state.streak,
+    streakFreeze: state.streakFreeze,
+    examMode: state.examMode,
+    completedHabits: Array.from(state.completedHabits),
+    bonusClaimed: state.bonusClaimed,
+    lastDate: state.lastDate,
+    history: state.history.slice(0, 10),
+    unlockedBadges: Array.from(state.unlockedBadges),
+    bosses: state.bosses,
+    bossesDefeated: state.bossesDefeated
+  };
+  localStorage.setItem('lifepg_v5_state', JSON.stringify(dataToSave));
+  updateDashboard();
+}
+
+// Reset diario a la medianoche (XP se conserva, hábitos se desmarcan)
+function checkDailyReset() {
+  const today = new Date().toDateString();
+  if (state.lastDate !== today) {
+    state.completedHabits.clear();
+    state.bonusClaimed = false;
+    state.lastDate = today;
+    saveState();
+  }
+}
+
+// Interfaz y Navegación
+function switchTab(tabId) {
+  document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
+  document.getElementById(`sec-${tabId}`).classList.remove('hidden');
+  document.getElementById(`sec-${tabId}`).classList.add('flex');
+
+  document.querySelectorAll('div.grid.grid-cols-5 > button').forEach(btn => {
+    btn.className = "py-2 rounded-lg hover:text-white transition-all text-slate-400";
+    if (btn.id === 'tab-btn-jefes') btn.classList.add('flex', 'items-center', 'justify-center', 'gap-1');
+  });
+
+  const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+  activeBtn.className = "py-2 rounded-lg bg-indigo-600 text-white shadow transition-all";
+  if (tabId === 'jefes') activeBtn.classList.add('flex', 'items-center', 'justify-center', 'gap-1');
+}
+
+function updateDashboard() {
+  const level = Math.floor(state.xp / 500) + 1;
+  const currentLevelXp = state.xp % 500;
+  const nextLevelXp = 500;
+  const percentage = Math.max(0, (currentLevelXp / nextLevelXp) * 100);
+
+  document.getElementById('user-level').innerText = level;
+  document.getElementById('user-xp').innerText = state.xp;
+  document.getElementById('next-level-xp').innerText = level * 500;
+  document.getElementById('xp-bar').style.width = `${percentage}%`;
+  document.getElementById('streak-count').innerText = state.streak;
+  document.getElementById('shop-balance').innerText = `${state.xp} XP Disp.`;
+
+  if (!window.currentLevel) window.currentLevel = level;
+  if (level > window.currentLevel) {
+    playSound('levelUp');
+    window.currentLevel = level;
+  }
+  checkBadges();
+}
+
+function toggleFreeze() {
+  state.streakFreeze = !state.streakFreeze;
+  saveState();
+  updateUIElements();
+}
+
+function toggleExamMode() {
+  state.examMode = !state.examMode;
+  saveState();
+  updateUIElements();
+  renderHabits();
+}
+
+function updateUIElements() {
+  const btnFreeze = document.getElementById('btn-freeze');
+  const freezeStatus = document.getElementById('freeze-status');
+  if (state.streakFreeze) {
+    btnFreeze.className = "flex items-center gap-1 bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 px-2.5 py-1.5 rounded-xl text-xs font-bold transition";
+    freezeStatus.innerText = "On";
+  } else {
+    btnFreeze.className = "flex items-center gap-1 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2.5 py-1.5 rounded-xl text-xs font-bold transition hover:bg-cyan-500/20";
+    freezeStatus.innerText = "Off";
+  }
+
+  const btnExam = document.getElementById('btn-exam-mode');
+  if (state.examMode) {
+    btnExam.className = "px-3 py-1 rounded-lg text-xs font-bold bg-rose-600 text-white shadow";
+    btnExam.innerText = "Activo";
+  } else {
+    btnExam.className = "px-3 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700 transition";
+    btnExam.innerText = "Inactivo";
+  }
+}
+
+// Gestión de Hábitos
+function renderHabits() {
+  const container = document.getElementById('habits-container');
+  container.innerHTML = habits.map(h => {
+    const checked = state.completedHabits.has(h.id);
+    const earnedXp = (h.id === 'h1' && state.examMode) ? h.xp * 2 : h.xp;
+    
+    return `
+      <div id="habit-card-${h.id}" onclick="toggleHabit('${h.id}')" class="habit-card flex items-center justify-between p-3 rounded-xl border cursor-pointer ${checked ? 'bg-indigo-950/40 border-indigo-500/50 text-indigo-200' : 'bg-slate-800/40 border-slate-700/50 hover:border-slate-600'}">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg transition-all ${checked ? 'bg-indigo-600 text-white shadow' : 'bg-slate-800 text-slate-400'}">
+            <i class="fa-solid ${h.icon}"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold flex items-center gap-1.5 ${checked ? 'line-through text-indigo-300' : 'text-slate-200'}">
+              ${h.title} <span class="text-[10px] px-1.5 py-0.2 rounded bg-slate-700/60 text-slate-400 font-semibold">${h.tag}</span>
+            </h3>
+            <p class="text-xs text-slate-400">${h.desc}</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold ${checked ? 'text-indigo-400' : 'text-indigo-500'}">+${earnedXp} XP</span>
+          <div class="w-5 h-5 rounded-full border flex items-center justify-center text-[10px] ${checked ? 'bg-indigo-600 border-indigo-500 text-white' : 'border-slate-600 text-transparent'}">
+            <i class="fa-solid fa-check"></i>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  checkBonusUI();
+}
+
+function toggleHabit(id) {
+  const habit = habits.find(h => h.id === id);
+  const earnedXp = (id === 'h1' && state.examMode) ? habit.xp * 2 : habit.xp;
+  const cardEl = document.getElementById(`habit-card-${id}`);
+
+  if (state.completedHabits.has(id)) {
+    state.completedHabits.delete(id);
+    state.xp = Math.max(0, state.xp - earnedXp);
+    playSound('uncheck');
+  } else {
+    state.completedHabits.add(id);
+    state.xp += earnedXp;
+    playSound('check');
+
+    if (cardEl) {
+      cardEl.classList.add('habit-pop');
+      setTimeout(() => cardEl.classList.remove('habit-pop'), 350);
+    }
+
+    if (id === 'h1') damageBosses(30);
+  }
+  
+  saveState();
+  renderHabits();
+}
+
+function checkBonusUI() {
+  const hasP1 = state.completedHabits.has('h1');
+  const hasP2 = state.completedHabits.has('h2');
+  const hasP3 = state.completedHabits.has('h3');
+  
+  const banner = document.getElementById('bonus-banner');
+  const btnClaim = document.getElementById('btn-claim-bonus');
+  const iconDone = document.getElementById('bonus-icon');
+
+  if (state.bonusClaimed) {
+    banner.className = "rounded-2xl p-4 border flex items-center justify-between transition-all bg-emerald-950/30 border-emerald-500/30 text-emerald-400";
+    btnClaim.classList.add('hidden');
+    iconDone.classList.remove('hidden', 'text-slate-600', 'fa-circle-xmark');
+    iconDone.classList.add('text-emerald-500', 'fa-circle-check');
+  } else if (hasP1 && hasP2 && hasP3) {
+    banner.className = "rounded-2xl p-4 border flex items-center justify-between transition-all bg-amber-950/30 border-amber-500/50 text-amber-200";
+    btnClaim.classList.remove('hidden');
+    iconDone.classList.add('hidden');
+  } else {
+    banner.className = "rounded-2xl p-4 border flex items-center justify-between transition-all bg-slate-800/40 border-slate-700/50 text-slate-400";
+    btnClaim.classList.add('hidden');
+    iconDone.classList.remove('hidden', 'text-emerald-500', 'fa-circle-check');
+    iconDone.classList.add('text-slate-600', 'fa-circle-xmark');
+  }
+}
+
+function claimBonus() {
+  if (!state.bonusClaimed) {
+    state.bonusClaimed = true;
+    state.xp += 30;
+    playSound('levelUp');
+    saveState();
+    checkBonusUI();
+  }
+}
+
+// Pomodoro Focus
+function updateTimerDisplay() {
+  const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+  const s = (timeLeft % 60).toString().padStart(2, '0');
+  document.getElementById('timer-display').innerText = `${m}:${s}`;
+}
+
+function setTimerPreset(minutes) {
+  if (isTimerRunning) return;
+  currentPreset = minutes;
+  timeLeft = minutes * 60;
+  updateTimerDisplay();
+}
+
+function toggleTimer() {
+  const btn = document.getElementById('btn-timer-start');
+  if (isTimerRunning) {
+    clearInterval(timerInterval);
+    isTimerRunning = false;
+    btn.innerText = "Reanudar";
+    btn.className = "flex-1 py-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-sm shadow transition";
+  } else {
+    isTimerRunning = true;
+    btn.innerText = "Pausar";
+    btn.className = "flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow transition";
+    timerInterval = setInterval(() => {
+      if (timeLeft > 0) {
+        timeLeft--;
+        updateTimerDisplay();
+      } else {
+        completePomodoro();
+      }
+    }, 1000);
+  }
+}
+
+function resetTimer() {
+  clearInterval(timerInterval);
+  isTimerRunning = false;
+  timeLeft = currentPreset * 60;
+  updateTimerDisplay();
+  const btn = document.getElementById('btn-timer-start');
+  btn.innerText = "Iniciar";
+  btn.className = "flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow transition";
+}
+
+function completePomodoro() {
+  resetTimer();
+  playSound('levelUp');
+  if (currentPreset >= 25) {
+    state.xp += 20;
+    damageBosses(25);
+    saveState();
+    alert(`¡Sesión de ${currentPreset} min completada! Ganaste 20 XP y dañaste a los jefes.`);
+  } else {
+    alert("¡Descanso terminado! Volvamos al trabajo.");
+  }
+}
+
+// Jefes
+function renderBosses() {
+  const container = document.getElementById('bosses-container');
+  if (state.bosses.length === 0) {
+    container.innerHTML = `
+      <div class="glass-card rounded-2xl p-6 text-center text-slate-400">
+        <i class="fa-solid fa-trophy text-4xl text-amber-500 mb-3"></i>
+        <p class="text-sm font-bold text-slate-200">¡Zona Segura!</p>
+        <p class="text-xs mt-1">Has derrotado a todos los jefes actuales.</p>
+      </div>
+    `;
+    document.getElementById('boss-badge').classList.add('hidden');
+    return;
+  }
+
+  document.getElementById('boss-badge').classList.remove('hidden');
+  container.innerHTML = state.bosses.map(boss => {
+    const hpPercent = Math.max(0, (boss.hp / boss.maxHp) * 100);
+    const isLowHp = hpPercent < 30;
+    
+    return `
+      <div class="glass-card rounded-2xl p-4 flex flex-col gap-3 border ${isLowHp ? 'border-rose-500/50' : 'border-slate-700/50'}">
+        <div class="flex justify-between items-center">
+          <div class="flex items-center gap-2">
+            <div class="w-10 h-10 rounded-lg bg-rose-950/50 text-rose-400 flex items-center justify-center text-lg border border-rose-500/20">
+              <i class="fa-solid ${boss.icon}"></i>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-slate-200">${boss.name}</h3>
+              <p class="text-xs text-rose-400 font-semibold">HP: ${boss.hp} / ${boss.maxHp}</p>
+            </div>
+          </div>
+          <div class="text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-1 rounded-lg border border-amber-500/20">
+            Botín: ${boss.xpReward} XP
+          </div>
+        </div>
+        <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden border border-slate-700">
+          <div class="bg-gradient-to-r from-rose-600 to-rose-400 h-3 rounded-full transition-all duration-500" style="width: ${hpPercent}%"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function damageBosses(dmgAmount) {
+  if (state.bosses.length === 0) return;
+  playSound('bossHit');
+
+  let bossDefeated = false;
+  state.bosses.forEach(boss => { boss.hp -= dmgAmount; });
+
+  const survivingBosses = [];
+  state.bosses.forEach(boss => {
+    if (boss.hp <= 0) {
+      bossDefeated = true;
+      state.xp += boss.xpReward;
+      state.bossesDefeated++;
+    } else {
+      survivingBosses.push(boss);
+    }
+  });
+
+  state.bosses = survivingBosses;
+  saveState();
+  renderBosses();
+
+  if (bossDefeated) {
+    setTimeout(() => alert("¡JEFE DERROTADO! Has ganado XP masiva."), 400);
+  }
+}
+
+// Horarios
+function getCurrentDay() {
+  const dayIndex = new Date().getDay();
+  return dayIndex === 0 ? 'Domingo' : daysOfWeek[dayIndex - 1];
+}
+
+function renderDaysSelector() {
+  const container = document.getElementById('day-selector');
+  container.innerHTML = daysOfWeek.map(day => `
+    <button onclick="renderSchedule('${day}')" id="day-btn-${day}" class="day-btn text-xs font-bold px-3 py-2 rounded-xl transition-all ${day === getCurrentDay() ? 'bg-indigo-600 text-white shadow' : 'bg-slate-800 text-slate-400'}">
+      ${day.substring(0,3)}
+    </button>
+  `).join('');
+}
+
+function renderSchedule(selectedDay) {
+  document.querySelectorAll('.day-btn').forEach(btn => {
+    btn.className = "day-btn text-xs font-bold px-3 py-2 rounded-xl bg-slate-800 text-slate-400 transition-all";
+  });
+  const activeBtn = document.getElementById(`day-btn-${selectedDay}`);
+  if (activeBtn) activeBtn.className = "day-btn text-xs font-bold px-3 py-2 rounded-xl bg-indigo-600 text-white transition-all shadow";
+
+  const container = document.getElementById('schedule-container');
+  const classes = scheduleData[selectedDay] || [];
+  
+  if (classes.length === 0) {
+    container.innerHTML = `<p class="text-sm text-slate-400 text-center py-4">Sin actividades programadas.</p>`;
+    return;
+  }
+
+  container.innerHTML = classes.map(cls => {
+    let typeColor = 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20';
+    if (cls.type === 'Lab') typeColor = 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20';
+    else if (cls.type === 'Libre') typeColor = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+    else if (cls.type === 'Hogar' || cls.type === 'Gestión') typeColor = 'text-amber-400 bg-amber-500/10 border-amber-500/20';
+
+    return `
+      <div class="flex items-start gap-3 p-3 rounded-xl bg-slate-800/40 border border-slate-700/50">
+        <div class="text-xs font-bold text-slate-400 whitespace-nowrap mt-0.5">${cls.time}</div>
+        <div>
+          <div class="text-sm font-bold text-slate-200">${cls.name}</div>
+          <div class="text-[10px] uppercase font-bold px-2 py-0.5 rounded mt-1 inline-block border ${typeColor}">
+            ${cls.type}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Tienda e Insignias
+function renderShop() {
+  const container = document.getElementById('shop-container');
+  container.innerHTML = rewards.map(r => {
+    const canAfford = state.xp >= r.xp;
+    return `
+      <div class="glass-card rounded-2xl p-4 flex justify-between items-center border border-slate-700/50">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-lg text-indigo-400">
+            <i class="fa-solid ${r.icon}"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-200">${r.title}</h3>
+            <p class="text-xs font-bold ${canAfford ? 'text-emerald-400' : 'text-slate-500'}"><i class="fa-solid fa-coins"></i> ${r.xp} XP</p>
+          </div>
+        </div>
+        <button onclick="buyReward('${r.id}')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${canAfford ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}">
+          Canjear
+        </button>
+      </div>
+    `;
+  }).join('');
+}
+
+function buyReward(id) {
+  const reward = rewards.find(r => r.id === id);
+  if (state.xp >= reward.xp) {
+    state.xp -= reward.xp;
+    playSound('buy');
+    
+    const date = new Date().toLocaleDateString('es-CL');
+    state.history.unshift({ title: reward.title, xp: reward.xp, date: date });
+    saveState();
+    
+    renderShop();
+    renderHistory();
+    alert(`¡Has canjeado: ${reward.title}! Disfruta tu recompensa.`);
+  } else {
+    alert("XP insuficiente.");
+  }
+}
+
+function renderHistory(
