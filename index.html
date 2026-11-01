@@ -39,7 +39,7 @@
 
   <!-- ENCABEZADO Y DASHBOARD XP -->
   <header class="glass-card sticky top-0 z-50 border-b border-slate-800 bg-slate-900/80 px-4 py-3 mb-4">
-    <div class="max-w-md mx-auto flex flex-col gap-3">
+    <div class="max-w-md lg:max-w-7xl mx-auto flex flex-col gap-3">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30 font-black">
@@ -78,8 +78,11 @@
     </div>
   </header>
 
-  <main class="max-w-md mx-auto px-4 w-full flex-1 flex flex-col gap-5">
-    <div class="grid grid-cols-5 gap-1 bg-slate-800/60 p-1 rounded-xl border border-slate-700/50 text-[11px] font-bold text-slate-400">
+  <!-- CONTENEDOR PRINCIPAL RESPONSIVO (MÓVIL / PC) -->
+  <main class="max-w-md lg:max-w-7xl mx-auto px-4 w-full flex-1 flex flex-col lg:grid lg:grid-cols-3 gap-6">
+
+    <!-- BOTONES DE PESTAÑA (Solo visibles en teléfono) -->
+    <div class="grid grid-cols-5 gap-1 bg-slate-800/60 p-1 rounded-xl border border-slate-700/50 text-[11px] font-bold text-slate-400 lg:hidden">
       <button onclick="switchTab('checkin')" id="tab-btn-checkin" class="py-2 rounded-lg bg-indigo-600 text-white shadow transition-all">Check-in</button>
       <button onclick="switchTab('pomodoro')" id="tab-btn-pomodoro" class="py-2 rounded-lg hover:text-white transition-all">Focus</button>
       <button onclick="switchTab('jefes')" id="tab-btn-jefes" class="py-2 rounded-lg hover:text-white transition-all flex items-center justify-center gap-1">
@@ -89,95 +92,103 @@
       <button onclick="switchTab('tienda')" id="tab-btn-tienda" class="py-2 rounded-lg hover:text-white transition-all">Tienda</button>
     </div>
 
-    <!-- PESTAÑA CHECK-IN -->
-    <section id="sec-checkin" class="flex flex-col gap-4">
-      <div class="flex justify-between items-center bg-rose-950/30 border border-rose-500/20 p-3 rounded-2xl">
-        <div class="flex items-center gap-2">
-          <i class="fa-solid fa-skull text-rose-400 text-lg"></i>
-          <div>
-            <div class="text-xs font-bold text-rose-200">Modo Examen / Certámenes</div>
-            <div class="text-[10px] text-rose-400">Duplica XP en Estudio de Ingeniería</div>
+    <!-- COLUMNA 1 (Check-in / Hábitos) -->
+    <div class="flex flex-col gap-5">
+      <section id="sec-checkin" class="flex flex-col gap-4 lg:!flex">
+        <div class="flex justify-between items-center bg-rose-950/30 border border-rose-500/20 p-3 rounded-2xl">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-skull text-rose-400 text-lg"></i>
+            <div>
+              <div class="text-xs font-bold text-rose-200">Modo Examen / Certámenes</div>
+              <div class="text-[10px] text-rose-400">Duplica XP en Estudio de Ingeniería</div>
+            </div>
+          </div>
+          <button onclick="toggleExamMode()" id="btn-exam-mode" class="px-3 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700 transition">Inactivo</button>
+        </div>
+
+        <div class="flex justify-between items-center">
+          <h2 class="text-base font-bold text-slate-200 flex items-center gap-2"><i class="fa-solid fa-list-check text-indigo-400"></i> Hábitos Diarios</h2>
+          <span class="text-xs text-slate-400">P1–P6 Prioridad</span>
+        </div>
+
+        <div class="glass-card rounded-2xl p-4 flex flex-col gap-3" id="habits-container"></div>
+
+        <div id="bonus-banner" class="rounded-2xl p-4 border flex items-center justify-between transition-all bg-slate-800/40 border-slate-700/50 text-slate-400">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold text-lg border border-amber-500/20"><i class="fa-solid fa-gift"></i></div>
+            <div>
+              <div class="text-sm font-bold text-slate-200">Bono Diario (+30 XP)</div>
+              <div class="text-xs text-slate-400">Completa Estudiar + Trabajo + Aseo</div>
+            </div>
+          </div>
+          <button onclick="claimBonus()" id="btn-claim-bonus" class="hidden px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-amber-950 text-xs font-bold rounded-lg transition">Reclamar</button>
+          <i id="bonus-icon" class="fa-solid fa-circle-xmark text-slate-600 text-xl hidden"></i>
+        </div>
+      </section>
+    </div>
+
+    <!-- COLUMNA 2 (Focus / Jefes) -->
+    <div class="flex flex-col gap-5">
+      <section id="sec-pomodoro" class="hidden flex-col gap-4 text-center lg:!flex">
+        <div class="glass-card rounded-2xl p-6 flex flex-col items-center gap-4">
+          <h2 class="text-base font-bold text-slate-200 flex items-center gap-2"><i class="fa-solid fa-stopwatch text-indigo-400"></i> Temporizador Pomodoro</h2>
+          <p class="text-xs text-slate-400">Completa sesiones de estudio para infligir daño a los Jefes y ganar XP.</p>
+          <div class="w-44 h-44 rounded-full border-4 border-indigo-500/30 bg-slate-800/80 flex items-center justify-center shadow-inner my-2">
+            <span id="timer-display" class="text-4xl font-extrabold tracking-wider text-white">25:00</span>
+          </div>
+          <div class="flex gap-2 mb-2">
+            <button onclick="setTimerPreset(25)" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300">25 min</button>
+            <button onclick="setTimerPreset(50)" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300">50 min</button>
+            <button onclick="setTimerPreset(5)" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300">5 min Break</button>
+          </div>
+          <div class="flex gap-3 w-full max-w-xs">
+            <button onclick="toggleTimer()" id="btn-timer-start" class="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow">Iniciar</button>
+            <button onclick="resetTimer()" class="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700"><i class="fa-solid fa-rotate-left"></i></button>
           </div>
         </div>
-        <button onclick="toggleExamMode()" id="btn-exam-mode" class="px-3 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700 transition">Inactivo</button>
-      </div>
-      <div class="flex justify-between items-center">
-        <h2 class="text-base font-bold text-slate-200 flex items-center gap-2"><i class="fa-solid fa-list-check text-indigo-400"></i> Hábitos Diarios</h2>
-        <span class="text-xs text-slate-400">P1–P6 Prioridad</span>
-      </div>
-      <div class="glass-card rounded-2xl p-4 flex flex-col gap-3" id="habits-container"></div>
-      <div id="bonus-banner" class="rounded-2xl p-4 border flex items-center justify-between transition-all bg-slate-800/40 border-slate-700/50 text-slate-400">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold text-lg border border-amber-500/20"><i class="fa-solid fa-gift"></i></div>
-          <div>
-            <div class="text-sm font-bold text-slate-200">Bono Diario (+30 XP)</div>
-            <div class="text-xs text-slate-400">Completa Estudiar + Trabajo + Aseo</div>
-          </div>
-        </div>
-        <button onclick="claimBonus()" id="btn-claim-bonus" class="hidden px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-amber-950 text-xs font-bold rounded-lg transition">Reclamar</button>
-        <i id="bonus-icon" class="fa-solid fa-circle-xmark text-slate-600 text-xl hidden"></i>
-      </div>
-    </section>
+      </section>
 
-    <!-- PESTAÑA POMODORO -->
-    <section id="sec-pomodoro" class="hidden flex-col gap-4 text-center">
-      <div class="glass-card rounded-2xl p-6 flex flex-col items-center gap-4">
-        <h2 class="text-base font-bold text-slate-200 flex items-center gap-2"><i class="fa-solid fa-stopwatch text-indigo-400"></i> Temporizador Pomodoro</h2>
-        <p class="text-xs text-slate-400">Completa sesiones de estudio para infligir daño a los Jefes y ganar XP.</p>
-        <div class="w-44 h-44 rounded-full border-4 border-indigo-500/30 bg-slate-800/80 flex items-center justify-center shadow-inner my-2">
-          <span id="timer-display" class="text-4xl font-extrabold tracking-wider text-white">25:00</span>
+      <section id="sec-jefes" class="hidden flex-col gap-4 lg:!flex">
+        <div class="flex justify-between items-center">
+          <h2 class="text-base font-bold text-slate-200 flex items-center gap-2"><i class="fa-solid fa-dragon text-rose-400"></i> Certámenes y Evaluaciones</h2>
+          <span class="text-xs text-rose-400 font-bold">Daño: Hábitos P1 + Focus</span>
         </div>
-        <div class="flex gap-2 mb-2">
-          <button onclick="setTimerPreset(25)" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300">25 min</button>
-          <button onclick="setTimerPreset(50)" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300">50 min</button>
-          <button onclick="setTimerPreset(5)" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300">5 min Break</button>
+        <div class="flex flex-col gap-3" id="bosses-container"></div>
+      </section>
+    </div>
+
+    <!-- COLUMNA 3 (Horario / Tienda) -->
+    <div class="flex flex-col gap-5">
+      <section id="sec-horario" class="hidden flex-col gap-4 lg:!flex">
+        <div class="flex justify-between items-center">
+          <h2 class="text-base font-bold text-slate-200 flex items-center gap-2"><i class="fa-solid fa-calendar-days text-indigo-400"></i> Agenda Semanal USACH</h2>
+          <span class="text-xs text-slate-400">2° Semestre</span>
         </div>
-        <div class="flex gap-3 w-full max-w-xs">
-          <button onclick="toggleTimer()" id="btn-timer-start" class="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow">Iniciar</button>
-          <button onclick="resetTimer()" class="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700"><i class="fa-solid fa-rotate-left"></i></button>
+        <div class="flex justify-between gap-1 overflow-x-auto pb-1" id="day-selector"></div>
+        <div class="glass-card rounded-2xl p-4 flex flex-col gap-3" id="schedule-container"></div>
+      </section>
+
+      <section id="sec-tienda" class="hidden flex-col gap-4 lg:!flex">
+        <div class="flex justify-between items-center">
+          <h2 class="text-base font-bold text-slate-200 flex items-center gap-2"><i class="fa-solid fa-store text-indigo-400"></i> Tienda de Recompensas</h2>
+          <span class="text-xs text-indigo-400 font-bold" id="shop-balance">0 XP Disp.</span>
         </div>
-      </div>
-    </section>
+        <div class="grid grid-cols-1 gap-3" id="shop-container"></div>
+        <div class="glass-card rounded-2xl p-4 mt-2">
+          <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Logros e Insignias</h3>
+          <div class="grid grid-cols-3 gap-2" id="badges-container"></div>
+        </div>
+        <div class="glass-card rounded-2xl p-4">
+          <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Historial Reciente</h3>
+          <div id="redemption-history" class="flex flex-col gap-2 text-xs text-slate-300"></div>
+        </div>
+        <div class="flex justify-between items-center mt-2 px-1">
+          <button onclick="resetXPOnly()" class="text-xs text-amber-400 underline"><i class="fa-solid fa-star-half-stroke"></i> Resetear XP a cero</button>
+          <button onclick="resetAllData()" class="text-xs text-rose-400 underline"><i class="fa-solid fa-rotate-left"></i> Borrar Todo</button>
+        </div>
+      </section>
+    </div>
 
-    <!-- PESTAÑA JEFES -->
-    <section id="sec-jefes" class="hidden flex-col gap-4">
-      <div class="flex justify-between items-center">
-        <h2 class="text-base font-bold text-slate-200 flex items-center gap-2"><i class="fa-solid fa-dragon text-rose-400"></i> Certámenes y Evaluaciones</h2>
-        <span class="text-xs text-rose-400 font-bold">Daño: Hábitos P1 + Focus</span>
-      </div>
-      <div class="flex flex-col gap-3" id="bosses-container"></div>
-    </section>
-
-    <!-- PESTAÑA HORARIO -->
-    <section id="sec-horario" class="hidden flex-col gap-4">
-      <div class="flex justify-between items-center">
-        <h2 class="text-base font-bold text-slate-200 flex items-center gap-2"><i class="fa-solid fa-calendar-days text-indigo-400"></i> Agenda Semanal USACH</h2>
-        <span class="text-xs text-slate-400">2° Semestre</span>
-      </div>
-      <div class="flex justify-between gap-1 overflow-x-auto pb-1" id="day-selector"></div>
-      <div class="glass-card rounded-2xl p-4 flex flex-col gap-3" id="schedule-container"></div>
-    </section>
-
-    <!-- PESTAÑA TIENDA -->
-    <section id="sec-tienda" class="hidden flex-col gap-4">
-      <div class="flex justify-between items-center">
-        <h2 class="text-base font-bold text-slate-200 flex items-center gap-2"><i class="fa-solid fa-store text-indigo-400"></i> Tienda de Recompensas</h2>
-        <span class="text-xs text-indigo-400 font-bold" id="shop-balance">0 XP Disp.</span>
-      </div>
-      <div class="grid grid-cols-1 gap-3" id="shop-container"></div>
-      <div class="glass-card rounded-2xl p-4 mt-2">
-        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Logros e Insignias</h3>
-        <div class="grid grid-cols-3 gap-2" id="badges-container"></div>
-      </div>
-      <div class="glass-card rounded-2xl p-4">
-        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Historial Reciente</h3>
-        <div id="redemption-history" class="flex flex-col gap-2 text-xs text-slate-300"></div>
-      </div>
-      <div class="flex justify-between items-center mt-2 px-1">
-        <button onclick="resetXPOnly()" class="text-xs text-amber-400 underline"><i class="fa-solid fa-star-half-stroke"></i> Resetear XP a cero</button>
-        <button onclick="resetAllData()" class="text-xs text-rose-400 underline"><i class="fa-solid fa-rotate-left"></i> Borrar Todo</button>
-      </div>
-    </section>
   </main>
 
   <!-- CARGA DE SCRIPTS -->
