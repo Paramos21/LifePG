@@ -552,7 +552,6 @@ function healBosses(healAmount) {
   renderBosses();
 }
 
-// Restaurar vida del jefe individual al 100%
 function resetBossHp(id) {
   if (!state.bosses) return;
   const boss = state.bosses.find(b => b.id === id);
