@@ -56,13 +56,13 @@ function loadState() {
     completedHabits: new Set(), bonusClaimed: false, lastDate: today,
     history: [], unlockedBadges: new Set(), bossesDefeated: 0,
     bosses: [
-      { id: 'b1', name: 'Certamen 2: Cálculo II', maxHp: 300, hp: 300, xpReward: 200, icon: 'fa-calculator' },
-      { id: 'b2', name: 'Proyecto: Programación', maxHp: 200, hp: 200, xpReward: 150, icon: 'fa-code' }
+      { id: 'b1', name: 'Certamen 2: Cálculo II', maxHp: 300, hp: 300, xpReward: 200, icon: 'fa-calculator', defeated: false },
+      { id: 'b2', name: 'Proyecto: Programación', maxHp: 200, hp: 200, xpReward: 150, icon: 'fa-code', defeated: false }
     ]
   };
 
   try {
-    const saved = localStorage.getItem('lifepg_v5_state');
+    const saved = localStorage.getItem('lifepg_v6_state');
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed && typeof parsed === 'object') {
@@ -117,13 +117,17 @@ function saveState() {
     bosses: state.bosses,
     bossesDefeated: state.bossesDefeated
   };
-  localStorage.setItem('lifepg_v5_state', JSON.stringify(dataToSave));
+  localStorage.setItem('lifepg_v6_state', JSON.stringify(dataToSave));
   updateDashboard();
 }
 
+// Reset diario a la medianoche (Elimina permanentemente jefes con HP 0 y limpia hábitos)
 function checkDailyReset() {
   const today = new Date().toDateString();
   if (state.lastDate !== today) {
+    if (state.bosses) {
+      state.bosses = state.bosses.filter(b => b.hp > 0);
+    }
     state.completedHabits.clear();
     state.bonusClaimed = false;
     state.lastDate = today;
@@ -131,7 +135,7 @@ function checkDailyReset() {
   }
 }
 
-// Navegación Pestañas (Solo Móvil)
+// Navegación Pestañas
 function switchTab(tabId) {
   document.querySelectorAll('main section').forEach(sec => sec.classList.add('hidden'));
   const targetSec = document.getElementById(`sec-${tabId}`);
@@ -264,6 +268,9 @@ function toggleHabit(id) {
     state.completedHabits.delete(id);
     state.xp = Math.max(0, state.xp - earnedXp);
     playSound('uncheck');
+
+    // Recupera vida del jefe si se desmarca
+    if (id === 'h1') healBosses(30);
   } else {
     state.completedHabits.add(id);
     state.xp += earnedXp;
@@ -274,6 +281,7 @@ function toggleHabit(id) {
       setTimeout(() => cardEl.classList.remove('habit-pop'), 350);
     }
 
+    // Aplica daño al jefe al marcar
     if (id === 'h1') damageBosses(30);
   }
   
@@ -384,18 +392,18 @@ function completePomodoro() {
   }
 }
 
-// Jefes
+// Jefes & Batallas
 function renderBosses() {
   const container = document.getElementById('bosses-container');
   const badge = document.getElementById('boss-badge');
   if (!container) return;
 
-  if (state.bosses.length === 0) {
+  if (!state.bosses || state.bosses.length === 0) {
     container.innerHTML = `
       <div class="glass-card rounded-2xl p-6 text-center text-slate-400">
         <i class="fa-solid fa-trophy text-4xl text-amber-500 mb-3"></i>
-        <p class="text-sm font-bold text-slate-200">¡Zona Segura!</p>
-        <p class="text-xs mt-1">Has derrotado a todos los jefes actuales.</p>
+        <p class="text-sm font-bold text-slate-200">¡Sin Jefes Activos!</p>
+        <p class="text-xs mt-1">Crea un jefe o evaluación con el botón superior.</p>
       </div>
     `;
     if (badge) badge.classList.add('hidden');
@@ -407,21 +415,27 @@ function renderBosses() {
   container.innerHTML = state.bosses.map(boss => {
     const hpPercent = Math.max(0, (boss.hp / boss.maxHp) * 100);
     const isLowHp = hpPercent < 30;
+    const isDefeated = boss.hp <= 0;
     
     return `
-      <div class="glass-card rounded-2xl p-4 flex flex-col gap-3 border ${isLowHp ? 'border-rose-500/50' : 'border-slate-700/50'}">
+      <div class="glass-card rounded-2xl p-4 flex flex-col gap-3 border ${isDefeated ? 'border-slate-800 opacity-60' : isLowHp ? 'border-rose-500/50' : 'border-slate-700/50'}">
         <div class="flex justify-between items-center">
           <div class="flex items-center gap-2">
             <div class="w-10 h-10 rounded-lg bg-rose-950/50 text-rose-400 flex items-center justify-center text-lg border border-rose-500/20">
-              <i class="fa-solid ${boss.icon}"></i>
+              <i class="fa-solid ${boss.icon || 'fa-skull'}"></i>
             </div>
             <div>
-              <h3 class="text-sm font-bold text-slate-200">${boss.name}</h3>
-              <p class="text-xs text-rose-400 font-semibold">HP: ${boss.hp} / ${boss.maxHp}</p>
+              <h3 class="text-sm font-bold text-slate-200 ${isDefeated ? 'line-through text-slate-400' : ''}">${boss.name}</h3>
+              <p class="text-xs text-rose-400 font-semibold">${isDefeated ? '¡Derrotado!' : `HP: ${boss.hp} / ${boss.maxHp}`}</p>
             </div>
           </div>
-          <div class="text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-1 rounded-lg border border-amber-500/20">
-            Botín: ${boss.xpReward} XP
+          <div class="flex items-center gap-2">
+            <div class="text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-1 rounded-lg border border-amber-500/20">
+              Botín: ${boss.xpReward} XP
+            </div>
+            <button onclick="deleteBoss('${boss.id}')" title="Eliminar Jefe" class="text-slate-500 hover:text-rose-400 text-xs px-1.5 py-1 transition">
+              <i class="fa-solid fa-trash"></i>
+            </button>
           </div>
         </div>
         <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden border border-slate-700">
@@ -433,33 +447,97 @@ function renderBosses() {
 }
 
 function damageBosses(dmgAmount) {
-  if (state.bosses.length === 0) return;
+  if (!state.bosses || state.bosses.length === 0) return;
   playSound('bossHit');
 
-  let bossDefeated = false;
-  state.bosses.forEach(boss => { boss.hp -= dmgAmount; });
-
-  const survivingBosses = [];
   state.bosses.forEach(boss => {
-    if (boss.hp <= 0) {
-      bossDefeated = true;
-      state.xp += boss.xpReward;
-      state.bossesDefeated++;
-    } else {
-      survivingBosses.push(boss);
+    if (boss.hp > 0) {
+      boss.hp = Math.max(0, boss.hp - dmgAmount);
+      if (boss.hp === 0 && !boss.defeated) {
+        boss.defeated = true;
+        state.xp += boss.xpReward;
+        state.bossesDefeated = (state.bossesDefeated || 0) + 1;
+        setTimeout(() => alert(`¡JEFE DERROTADO: ${boss.name}! +${boss.xpReward} XP`), 200);
+      }
     }
   });
 
-  state.bosses = survivingBosses;
+  saveState();
+  renderBosses();
+}
+
+function healBosses(healAmount) {
+  if (!state.bosses || state.bosses.length === 0) return;
+
+  state.bosses.forEach(boss => {
+    const wasDefeated = boss.defeated || boss.hp <= 0;
+    boss.hp = Math.min(boss.maxHp, boss.hp + healAmount);
+
+    if (wasDefeated && boss.hp > 0) {
+      boss.defeated = false;
+      state.xp = Math.max(0, state.xp - boss.xpReward);
+      state.bossesDefeated = Math.max(0, (state.bossesDefeated || 0) - 1);
+    }
+  });
+
+  saveState();
+  renderBosses();
+}
+
+// Agregar y Eliminar Jefes Manualmente
+function toggleBossForm() {
+  const form = document.getElementById('add-boss-form');
+  if (form) form.classList.toggle('hidden');
+}
+
+function addNewBoss() {
+  const nameInput = document.getElementById('new-boss-name');
+  const hpInput = document.getElementById('new-boss-hp');
+  const xpInput = document.getElementById('new-boss-xp');
+  const iconInput = document.getElementById('new-boss-icon');
+
+  if (!nameInput || !hpInput || !xpInput) return;
+
+  const name = nameInput.value.trim();
+  const hp = parseInt(hpInput.value);
+  const xp = parseInt(xpInput.value);
+  const icon = iconInput ? iconInput.value : 'fa-skull';
+
+  if (!name || isNaN(hp) || hp <= 0 || isNaN(xp) || xp < 0) {
+    alert("Por favor completa los campos de Nombre, HP y XP correctamente.");
+    return;
+  }
+
+  const newBoss = {
+    id: 'b_' + Date.now(),
+    name: name,
+    maxHp: hp,
+    hp: hp,
+    xpReward: xp,
+    icon: icon,
+    defeated: false
+  };
+
+  if (!state.bosses) state.bosses = [];
+  state.bosses.push(newBoss);
   saveState();
   renderBosses();
 
-  if (bossDefeated) {
-    setTimeout(() => alert("¡JEFE DERROTADO! Has ganado XP masiva."), 400);
+  nameInput.value = '';
+  hpInput.value = '';
+  xpInput.value = '';
+  toggleBossForm();
+}
+
+function deleteBoss(id) {
+  if (confirm("¿Estás seguro de eliminar este jefe?")) {
+    state.bosses = state.bosses.filter(b => b.id !== id);
+    saveState();
+    renderBosses();
   }
 }
 
-// Horario
+// Horarios
 function getCurrentDay() {
   if (typeof daysOfWeek === 'undefined') return 'Lunes';
   const dayIndex = new Date().getDay();
@@ -628,7 +706,7 @@ function resetXPOnly() {
 
 function resetAllData() {
   if (confirm("¿Estás seguro de que deseas borrar TODO tu progreso? Esta acción no se puede deshacer.")) {
-    localStorage.removeItem('lifepg_v5_state');
+    localStorage.removeItem('lifepg_v6_state');
     location.reload();
   }
 }
