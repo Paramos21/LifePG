@@ -151,8 +151,32 @@
       <section id="sec-jefes" class="hidden flex-col gap-4 lg:!flex">
         <div class="flex justify-between items-center">
           <h2 class="text-base font-bold text-slate-200 flex items-center gap-2"><i class="fa-solid fa-dragon text-rose-400"></i> Certámenes y Evaluaciones</h2>
-          <span class="text-xs text-rose-400 font-bold">Daño: Hábitos P1 + Focus</span>
+          <button onclick="toggleBossForm()" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition flex items-center gap-1 shadow">
+            <i class="fa-solid fa-plus"></i> Crear Jefe
+          </button>
         </div>
+
+        <!-- FORMULARIO CREAR JEFE -->
+        <div id="add-boss-form" class="hidden glass-card rounded-2xl p-4 flex flex-col gap-3 border border-rose-500/30 bg-rose-950/20">
+          <h3 class="text-xs font-bold text-rose-300 uppercase tracking-wider">Nuevo Jefe / Certamen</h3>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <input id="new-boss-name" type="text" placeholder="Nombre (ej: Certamen 1)" class="col-span-2 p-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 outline-none focus:border-rose-500">
+            <input id="new-boss-hp" type="number" placeholder="HP Total (ej: 300)" class="p-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 outline-none focus:border-rose-500">
+            <input id="new-boss-xp" type="number" placeholder="Recompensa XP (ej: 250)" class="p-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 outline-none focus:border-rose-500">
+            <select id="new-boss-icon" class="col-span-2 p-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 outline-none focus:border-rose-500">
+              <option value="fa-skull">💀 Calavera</option>
+              <option value="fa-calculator">🧮 Cálculo / Mates</option>
+              <option value="fa-code">💻 Programación</option>
+              <option value="fa-atom">⚛️ Física / Química</option>
+              <option value="fa-book">📖 Lectura / General</option>
+            </select>
+          </div>
+          <div class="flex gap-2 justify-end mt-1">
+            <button onclick="toggleBossForm()" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700">Cancelar</button>
+            <button onclick="addNewBoss()" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-600 text-white shadow">Guardar Jefe</button>
+          </div>
+        </div>
+
         <div class="flex flex-col gap-3" id="bosses-container"></div>
       </section>
     </div>
