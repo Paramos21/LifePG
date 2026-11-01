@@ -6,50 +6,69 @@
   <title>LifePG - Sistema de Productividad Gamificado</title>
   
   <meta name="apple-mobile-web-app-title" content="LifePG">
+  <meta name="application-name" content="LifePG">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#4f46e5">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3408/3408506.png">
+  <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3408/3408506.png">
 
+  <!-- Tailwind CSS & FontAwesome Icons -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
     body { font-family: 'Plus Jakarta Sans', sans-serif; }
-    .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
-    
-    /* Animaciones Nuevas */
-    .habit-card { transition: all 0.2s ease-out; }
-    .habit-card:active { transform: scale(0.95); }
-    .habit-card.completed { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; pointer-events: none; opacity: 0.8; }
-    
-    @keyframes popIn {
+    .glass-card {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .habit-card { transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+    .habit-card:active { transform: scale(0.97); }
+    .habit-pop { animation: popAnim 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    @keyframes popAnim {
       0% { transform: scale(0.95); }
-      50% { transform: scale(1.03); }
+      50% { transform: scale(1.02); }
       100% { transform: scale(1); }
     }
   </style>
 </head>
 <body class="min-h-screen flex flex-col pb-12">
 
+  <!-- ENCABEZADO Y DASHBOARD XP -->
   <header class="glass-card sticky top-0 z-50 border-b border-slate-800 bg-slate-900/80 px-4 py-3 mb-4">
     <div class="max-w-md mx-auto flex flex-col gap-3">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-lg font-black">RPG</div>
+          <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30 font-black">
+            RPG
+          </div>
           <div>
             <h1 class="text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
               LifePG <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">USACH</span>
             </h1>
+            <p class="text-xs text-slate-400">Ingeniería de Ejecución Industrial</p>
           </div>
         </div>
+
         <div class="flex items-center gap-2">
-          <button onclick="toggleFreeze()" id="btn-freeze" class="flex items-center gap-1 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2.5 py-1.5 rounded-xl text-xs font-bold transition">
+          <button onclick="toggleFreeze()" id="btn-freeze" title="Comodín de Racha" class="flex items-center gap-1 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2.5 py-1.5 rounded-xl text-xs font-bold transition hover:bg-cyan-500/20">
             <i class="fa-solid fa-snowflake"></i> <span id="freeze-status">Off</span>
           </button>
+          <div class="flex items-center gap-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 px-3 py-1.5 rounded-xl text-xs font-bold">
+            <i class="fa-solid fa-fire text-amber-500"></i>
+            <span id="streak-count">0</span> Días
+          </div>
         </div>
       </div>
+
       <div class="bg-slate-800/80 rounded-xl p-3 border border-slate-700/50">
         <div class="flex justify-between items-center text-xs mb-1.5 font-bold">
-          <span class="text-indigo-400 flex items-center gap-1"><i class="fa-solid fa-shield-halved"></i> Nivel <span id="user-level">1</span></span>
+          <span class="text-indigo-400 flex items-center gap-1">
+            <i class="fa-solid fa-shield-halved"></i> Nivel <span id="user-level">1</span>
+          </span>
           <span class="text-slate-300"><span id="user-xp">0</span> / <span id="next-level-xp">500</span> XP</span>
         </div>
         <div class="w-full bg-slate-700/60 rounded-full h-2.5 overflow-hidden">
@@ -58,195 +77,111 @@
       </div>
     </div>
   </header>
-    <main class="max-w-md mx-auto px-4 w-full flex-1 flex flex-col gap-5">
+
+  <main class="max-w-md mx-auto px-4 w-full flex-1 flex flex-col gap-5">
     <div class="grid grid-cols-5 gap-1 bg-slate-800/60 p-1 rounded-xl border border-slate-700/50 text-[11px] font-bold text-slate-400">
       <button onclick="switchTab('checkin')" id="tab-btn-checkin" class="py-2 rounded-lg bg-indigo-600 text-white shadow transition-all">Check-in</button>
       <button onclick="switchTab('pomodoro')" id="tab-btn-pomodoro" class="py-2 rounded-lg hover:text-white transition-all">Focus</button>
-      <button onclick="switchTab('jefes')" id="tab-btn-jefes" class="py-2 rounded-lg hover:text-white transition-all">Jefes</button>
+      <button onclick="switchTab('jefes')" id="tab-btn-jefes" class="py-2 rounded-lg hover:text-white transition-all flex items-center justify-center gap-1">
+        Jefes <span id="boss-badge" class="w-2 h-2 rounded-full bg-rose-500 hidden"></span>
+      </button>
       <button onclick="switchTab('horario')" id="tab-btn-horario" class="py-2 rounded-lg hover:text-white transition-all">Horario</button>
       <button onclick="switchTab('tienda')" id="tab-btn-tienda" class="py-2 rounded-lg hover:text-white transition-all">Tienda</button>
     </div>
 
+    <!-- PESTAÑA CHECK-IN -->
     <section id="sec-checkin" class="flex flex-col gap-4">
       <div class="flex justify-between items-center bg-rose-950/30 border border-rose-500/20 p-3 rounded-2xl">
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-skull text-rose-400 text-lg"></i>
-          <div><div class="text-xs font-bold text-rose-200">Modo Examen</div><div class="text-[10px] text-rose-400">Duplica XP en Estudio</div></div>
+          <div>
+            <div class="text-xs font-bold text-rose-200">Modo Examen / Certámenes</div>
+            <div class="text-[10px] text-rose-400">Duplica XP en Estudio de Ingeniería</div>
+          </div>
         </div>
         <button onclick="toggleExamMode()" id="btn-exam-mode" class="px-3 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700 transition">Inactivo</button>
       </div>
-      
+      <div class="flex justify-between items-center">
+        <h2 class="text-base font-bold text-slate-200 flex items-center gap-2"><i class="fa-solid fa-list-check text-indigo-400"></i> Hábitos Diarios</h2>
+        <span class="text-xs text-slate-400">P1–P6 Prioridad</span>
+      </div>
       <div class="glass-card rounded-2xl p-4 flex flex-col gap-3" id="habits-container"></div>
-      
       <div id="bonus-banner" class="rounded-2xl p-4 border flex items-center justify-between transition-all bg-slate-800/40 border-slate-700/50 text-slate-400">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold text-lg"><i class="fa-solid fa-gift"></i></div>
-          <div><div class="text-sm font-bold text-slate-200">Bono Diario (+30 XP)</div><div class="text-xs text-slate-400">Completar 3 primeras tareas</div></div>
+          <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold text-lg border border-amber-500/20"><i class="fa-solid fa-gift"></i></div>
+          <div>
+            <div class="text-sm font-bold text-slate-200">Bono Diario (+30 XP)</div>
+            <div class="text-xs text-slate-400">Completa Estudiar + Trabajo + Aseo</div>
+          </div>
         </div>
-        <button onclick="claimBonus()" id="btn-claim-bonus" class="hidden px-3 py-1.5 bg-amber-500 text-amber-950 text-xs font-bold rounded-lg transition">Reclamar</button>
+        <button onclick="claimBonus()" id="btn-claim-bonus" class="hidden px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-amber-950 text-xs font-bold rounded-lg transition">Reclamar</button>
+        <i id="bonus-icon" class="fa-solid fa-circle-xmark text-slate-600 text-xl hidden"></i>
       </div>
     </section>
 
+    <!-- PESTAÑA POMODORO -->
     <section id="sec-pomodoro" class="hidden flex-col gap-4 text-center">
       <div class="glass-card rounded-2xl p-6 flex flex-col items-center gap-4">
+        <h2 class="text-base font-bold text-slate-200 flex items-center gap-2"><i class="fa-solid fa-stopwatch text-indigo-400"></i> Temporizador Pomodoro</h2>
+        <p class="text-xs text-slate-400">Completa sesiones de estudio para infligir daño a los Jefes y ganar XP.</p>
         <div class="w-44 h-44 rounded-full border-4 border-indigo-500/30 bg-slate-800/80 flex items-center justify-center shadow-inner my-2">
           <span id="timer-display" class="text-4xl font-extrabold tracking-wider text-white">25:00</span>
         </div>
         <div class="flex gap-2 mb-2">
           <button onclick="setTimerPreset(25)" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300">25 min</button>
           <button onclick="setTimerPreset(50)" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300">50 min</button>
+          <button onclick="setTimerPreset(5)" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300">5 min Break</button>
         </div>
         <div class="flex gap-3 w-full max-w-xs">
           <button onclick="toggleTimer()" id="btn-timer-start" class="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow">Iniciar</button>
-          <button onclick="resetTimer()" class="py-3 px-4 rounded-xl bg-slate-800 border border-slate-700"><i class="fa-solid fa-rotate-left"></i></button>
+          <button onclick="resetTimer()" class="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700"><i class="fa-solid fa-rotate-left"></i></button>
         </div>
       </div>
     </section>
 
-    <section id="sec-jefes" class="hidden flex-col gap-4"><div class="flex flex-col gap-3" id="bosses-container"></div></section>
+    <!-- PESTAÑA JEFES -->
+    <section id="sec-jefes" class="hidden flex-col gap-4">
+      <div class="flex justify-between items-center">
+        <h2 class="text-base font-bold text-slate-200 flex items-center gap-2"><i class="fa-solid fa-dragon text-rose-400"></i> Certámenes y Evaluaciones</h2>
+        <span class="text-xs text-rose-400 font-bold">Daño: Hábitos P1 + Focus</span>
+      </div>
+      <div class="flex flex-col gap-3" id="bosses-container"></div>
+    </section>
+
+    <!-- PESTAÑA HORARIO -->
     <section id="sec-horario" class="hidden flex-col gap-4">
+      <div class="flex justify-between items-center">
+        <h2 class="text-base font-bold text-slate-200 flex items-center gap-2"><i class="fa-solid fa-calendar-days text-indigo-400"></i> Agenda Semanal USACH</h2>
+        <span class="text-xs text-slate-400">2° Semestre</span>
+      </div>
       <div class="flex justify-between gap-1 overflow-x-auto pb-1" id="day-selector"></div>
       <div class="glass-card rounded-2xl p-4 flex flex-col gap-3" id="schedule-container"></div>
     </section>
 
+    <!-- PESTAÑA TIENDA -->
     <section id="sec-tienda" class="hidden flex-col gap-4">
-      <div class="flex justify-between items-center mb-2">
-        <h2 class="text-base font-bold text-slate-200"><i class="fa-solid fa-store text-indigo-400"></i> Tienda</h2>
+      <div class="flex justify-between items-center">
+        <h2 class="text-base font-bold text-slate-200 flex items-center gap-2"><i class="fa-solid fa-store text-indigo-400"></i> Tienda de Recompensas</h2>
         <span class="text-xs text-indigo-400 font-bold" id="shop-balance">0 XP Disp.</span>
       </div>
       <div class="grid grid-cols-1 gap-3" id="shop-container"></div>
-      
-      <div class="flex justify-between items-center mt-4">
-        <button onclick="resetXPOnly()" class="text-xs text-amber-500 font-bold px-3 py-2 bg-amber-500/10 rounded-lg border border-amber-500/20"><i class="fa-solid fa-star-half-stroke"></i> Resetear XP</button>
-        <button onclick="resetAllData()" class="text-xs text-rose-500 font-bold px-3 py-2 bg-rose-500/10 rounded-lg border border-rose-500/20"><i class="fa-solid fa-triangle-exclamation"></i> Borrar Todo</button>
+      <div class="glass-card rounded-2xl p-4 mt-2">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Logros e Insignias</h3>
+        <div class="grid grid-cols-3 gap-2" id="badges-container"></div>
+      </div>
+      <div class="glass-card rounded-2xl p-4">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Historial Reciente</h3>
+        <div id="redemption-history" class="flex flex-col gap-2 text-xs text-slate-300"></div>
+      </div>
+      <div class="flex justify-between items-center mt-2 px-1">
+        <button onclick="resetXPOnly()" class="text-xs text-amber-400 underline"><i class="fa-solid fa-star-half-stroke"></i> Resetear XP a cero</button>
+        <button onclick="resetAllData()" class="text-xs text-rose-400 underline"><i class="fa-solid fa-rotate-left"></i> Borrar Todo</button>
       </div>
     </section>
-    </main>
-      <script>
-    function playSound(type) {
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = ctx.createOscillator(); const gain = ctx.createGain();
-        osc.connect(gain); gain.connect(ctx.destination);
-        if(type==='check'){ osc.type='sine'; osc.frequency.setValueAtTime(523.25, ctx.currentTime); osc.frequency.exponentialRampToValueAtTime(659.25, ctx.currentTime+0.1); gain.gain.setValueAtTime(0.1, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime+0.15); osc.start(); osc.stop(ctx.currentTime+0.15); }
-        else if(type==='levelUp'){ osc.type='triangle'; osc.frequency.setValueAtTime(440, ctx.currentTime); osc.frequency.setValueAtTime(659.25, ctx.currentTime+0.2); gain.gain.setValueAtTime(0.15, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime+0.45); osc.start(); osc.stop(ctx.currentTime+0.45); }
-      } catch(e) {}
-    }
+  </main>
 
-    const habits = [
-      { id: 'h1', title: 'Estudiar Ingeniería', desc: '45-60 min', xp: 60, icon: 'fa-graduation-cap' },
-      { id: 'h2', title: 'Trabajo Online', desc: 'Cumplir meta', xp: 50, icon: 'fa-laptop-code' },
-      { id: 'h3', title: 'Aseo', desc: '15-30 min', xp: 40, icon: 'fa-broom' },
-      { id: 'h4', title: 'Alemán', desc: '20-30 min', xp: 30, icon: 'fa-language' },
-      { id: 'h5', title: 'Leer', desc: '15 min', xp: 20, icon: 'fa-book-open' }
-    ];
-    const daysOfWeek = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
-
-    let state = loadState();
-    let timerInterval = null, timeLeft = 25*60, isTimerRunning = false, currentPreset = 25;
-
-    window.onload = function() {
-      checkDailyReset(); renderHabits(); renderDaysSelector();
-      renderShop(); renderBosses(); updateUIElements(); updateDashboard();
-    };
-
-    function loadState() {
-      const saved = localStorage.getItem('lifepg_v3');
-      const today = new Date().toDateString();
-      if (saved) {
-        const p = JSON.parse(saved);
-        return { xp: p.xp||0, examMode: p.examMode||false, completedHabits: new Set(p.completedHabits||[]), bonusClaimed: p.bonusClaimed||false, lastDate: p.lastDate||today, bosses: p.bosses||[{id:'b1',name:'Certamen Cálculo',maxHp:300,hp:300,xpReward:200,icon:'fa-calculator'}] };
-      }
-      return { xp:0, examMode:false, completedHabits: new Set(), bonusClaimed:false, lastDate: today, bosses: [{id:'b1',name:'Certamen Cálculo',maxHp:300,hp:300,xpReward:200,icon:'fa-calculator'}] };
-    }
-
-    function saveState() {
-      const d = { ...state, completedHabits: [...state.completedHabits] };
-      localStorage.setItem('lifepg_v3', JSON.stringify(d)); updateDashboard();
-    }
-
-    function checkDailyReset() {
-      const today = new Date().toDateString();
-      if(state.lastDate !== today) {
-        state.completedHabits.clear();
-        state.bonusClaimed = false;
-        state.lastDate = today;
-        saveState();
-      }
-    }
-
-    function switchTab(tabId) {
-      document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
-      document.getElementById(`sec-${tabId}`).classList.remove('hidden'); document.getElementById(`sec-${tabId}`).classList.add('flex');
-      document.querySelectorAll('.grid button').forEach(b => b.className = "py-2 rounded-lg hover:text-white transition-all text-slate-400");
-      document.getElementById(`tab-btn-${tabId}`).className = "py-2 rounded-lg bg-indigo-600 text-white shadow transition-all";
-    }
-
-    function updateDashboard() {
-      const lvl = Math.floor(state.xp / 500) + 1;
-      document.getElementById('user-level').innerText = lvl;
-      document.getElementById('user-xp').innerText = state.xp;
-      document.getElementById('next-level-xp').innerText = lvl * 500;
-      document.getElementById('xp-bar').style.width = `${((state.xp % 500)/500)*100}%`;
-      document.getElementById('shop-balance').innerText = `${state.xp} XP Disp.`;
-    }
-
-    function toggleExamMode() { state.examMode = !state.examMode; saveState(); updateUIElements(); renderHabits(); }
-    function updateUIElements() {
-      const btnE = document.getElementById('btn-exam-mode');
-      btnE.className = state.examMode ? "px-3 py-1 rounded-lg text-xs font-bold bg-rose-600 text-white" : "px-3 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700";
-      btnE.innerText = state.examMode ? "Activo" : "Inactivo";
-    }
-
-    function renderHabits() {
-      document.getElementById('habits-container').innerHTML = habits.map(h => {
-        const c = state.completedHabits.has(h.id);
-        const xp = (h.id === 'h1' && state.examMode) ? h.xp * 2 : h.xp;
-        return `<div onclick="toggleHabit('${h.id}')" class="habit-card flex items-center justify-between p-3 rounded-xl border cursor-pointer ${c ? 'completed bg-indigo-950/40 border-indigo-500/50' : 'bg-slate-800/40 border-slate-700/50'}">
-          <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg flex items-center justify-center ${c ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'}"><i class="fa-solid ${h.icon}"></i></div>
-          <div><h3 class="text-sm font-bold ${c ? 'line-through text-indigo-300' : 'text-slate-200'}">${h.title}</h3><p class="text-xs text-slate-400">${h.desc}</p></div></div>
-          <div class="text-xs font-bold text-indigo-400">+${xp} XP</div></div>`;
-      }).join('');
-      checkBonusUI();
-    }
-
-    function toggleHabit(id) {
-      if (state.completedHabits.has(id)) return; // BLOQUEO: Solo se puede hacer 1 vez al día
-      const h = habits.find(x => x.id === id);
-      const xp = (id === 'h1' && state.examMode) ? h.xp * 2 : h.xp;
-      
-      state.completedHabits.add(id);
-      state.xp += xp; 
-      playSound('check');
-      saveState(); 
-      renderHabits();
-    }
-
-    function checkBonusUI() {
-      const p1 = state.completedHabits.has('h1'), p2 = state.completedHabits.has('h2'), p3 = state.completedHabits.has('h3');
-      const b = document.getElementById('bonus-banner'), c = document.getElementById('btn-claim-bonus');
-      if (state.bonusClaimed) { b.className="rounded-2xl p-4 flex justify-between bg-emerald-950/30 border border-emerald-500/30 text-emerald-400"; c.classList.add('hidden'); }
-      else if (p1 && p2 && p3) { b.className="rounded-2xl p-4 flex justify-between bg-amber-950/30 border border-amber-500/50 text-amber-200"; c.classList.remove('hidden'); }
-    }
-    function claimBonus() { if(!state.bonusClaimed) { state.bonusClaimed=true; state.xp+=30; playSound('levelUp'); saveState(); checkBonusUI(); } }
-
-    function renderBosses() {
-      const c = document.getElementById('bosses-container');
-      if(state.bosses.length === 0) { c.innerHTML = '<p class="text-amber-500 text-center py-4">¡Jefes derrotados!</p>'; return; }
-      c.innerHTML = state.bosses.map(b => `<div class="glass-card rounded-2xl p-4 border border-slate-700/50"><div class="flex justify-between items-center mb-2"><h3 class="text-sm font-bold text-slate-200"><i class="fa-solid ${b.icon} text-rose-400"></i> ${b.name}</h3></div><div class="w-full bg-slate-800 rounded-full h-3"><div class="bg-rose-500 h-3 rounded-full" style="width: ${Math.max(0,(b.hp/b.maxHp)*100)}%"></div></div></div>`).join('');
-    }
-
-    function renderDaysSelector() { document.getElementById('day-selector').innerHTML = daysOfWeek.map(d => `<button class="text-xs font-bold px-3 py-2 rounded-xl bg-slate-800 text-slate-400">${d.substring(0,3)}</button>`).join(''); }
-    function renderShop() { document.getElementById('shop-container').innerHTML = '<div class="text-center text-sm text-slate-400 py-4">Sistema de recompensas</div>'; }
-
-    function resetXPOnly() { if(confirm("¿Seguro que quieres reiniciar tus XP a 0? (No afecta tareas completadas hoy)")) { state.xp = 0; saveState(); } }
-    function resetAllData() { if(confirm("¿Borrar TODO el progreso?")) { localStorage.removeItem('lifepg_v3'); location.reload(); } }
-
-    // Funciones Pomodoro básicas
-    function updateTimerDisplay() { document.getElementById('timer-display').innerText = `${String(Math.floor(timeLeft/60)).padStart(2,'0')}:${String(timeLeft%60).padStart(2,'0')}`; }
-    function setTimerPreset(m) { if(isTimerRunning) return; currentPreset = m; timeLeft = m * 60; updateTimerDisplay(); }
-    function toggleTimer() { const btn = document.getElementById('btn-timer-start'); if(isTimerRunning){ clearInterval(timerInterval); isTimerRunning=false; btn.innerText="Reanudar"; } else { isTimerRunning=true; btn.innerText="Pausar"; timerInterval = setInterval(()=>{ if(timeLeft>0){timeLeft--; updateTimerDisplay();} else{resetTimer(); playSound('levelUp'); alert("¡Listo!");} }, 1000); } }
-    function resetTimer() { clearInterval(timerInterval); isTimerRunning=false; timeLeft=currentPreset*60; updateTimerDisplay(); document.getElementById('btn-timer-start').innerText="Iniciar"; }
-  </script>
+  <!-- CARGA DE SCRIPTS -->
+  <script src="datos.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
