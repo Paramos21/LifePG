@@ -48,7 +48,7 @@ function playSound(type) {
   } catch (e) {}
 }
 
-// Cargar y Guardar Estado Blindado
+// Cargar y Guardar Estado
 function loadState() {
   const today = new Date().toDateString();
   const defaultState = {
@@ -81,9 +81,7 @@ function loadState() {
         };
       }
     }
-  } catch (e) {
-    console.error('Error loading state:', e);
-  }
+  } catch (e) {}
   return defaultState;
 }
 
@@ -123,7 +121,6 @@ function saveState() {
   updateDashboard();
 }
 
-// Reset diario a la medianoche (XP se conserva, hábitos se desmarcan)
 function checkDailyReset() {
   const today = new Date().toDateString();
   if (state.lastDate !== today) {
@@ -134,9 +131,9 @@ function checkDailyReset() {
   }
 }
 
-// Interfaz y Navegación
+// Navegación Pestañas (Solo Móvil)
 function switchTab(tabId) {
-  document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
+  document.querySelectorAll('main section').forEach(sec => sec.classList.add('hidden'));
   const targetSec = document.getElementById(`sec-${tabId}`);
   if (targetSec) {
     targetSec.classList.remove('hidden');
@@ -221,7 +218,7 @@ function updateUIElements() {
   }
 }
 
-// Gestión de Hábitos
+// Hábitos
 function renderHabits() {
   const container = document.getElementById('habits-container');
   if (!container || typeof habits === 'undefined') return;
@@ -462,7 +459,7 @@ function damageBosses(dmgAmount) {
   }
 }
 
-// Horarios
+// Horario
 function getCurrentDay() {
   if (typeof daysOfWeek === 'undefined') return 'Lunes';
   const dayIndex = new Date().getDay();
@@ -516,7 +513,7 @@ function renderSchedule(selectedDay) {
   }).join('');
 }
 
-// Tienda e Insignias
+// Tienda
 function renderShop() {
   const container = document.getElementById('shop-container');
   if (!container || typeof rewards === 'undefined') return;
